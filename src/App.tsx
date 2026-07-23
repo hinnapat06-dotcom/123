@@ -2767,7 +2767,7 @@ export default function App() {
               }`}
             >
               <Users className="w-4 h-4" />
-              <span>2. อสม. / Caregiver / คลังทุนหนุนใจ (เลขบัตร 13 หลัก)</span>
+              <span>2. บุคคลทั่วไป/อสม.</span>
             </button>
           </div>
 
@@ -2833,15 +2833,15 @@ export default function App() {
                 </form>
               </div>
             ) : (
-              /* VHV & Caregiver & Benefactors Login Tab - Strictly Citizen ID 13 digits */
+              /* Public & VHV Login Tab - Strictly Citizen ID 13 digits */
               <div className="space-y-4">
                 <div className="p-3.5 bg-emerald-50/80 border border-emerald-150 rounded-2xl text-xs text-emerald-800 space-y-1.5">
                   <p className="font-extrabold flex items-center gap-1.5 text-emerald-900">
                     <UserCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span>เข้าใช้งานสำหรับ อสม. / Caregiver / คลังทุนหนุนใจ</span>
+                    <span>เข้าใช้งานสำหรับ บุคคลทั่วไป / อสม.</span>
                   </p>
                   <p className="text-[11px] text-emerald-800 leading-relaxed">
-                    💡 <strong>ยืนยันตัวตนผ่านเลขบัตรประชาชน 13 หลัก</strong>: ระบุเพียงเลขประจำตัวประชาชน 13 หลักตามทะเบียน เข้าถึงสิทธิ์การใช้งาน อสม., Caregiver (ผู้ดูแล) และคลังทุนหนุนใจได้โดยไม่ต้องใช้รหัสผ่าน
+                    💡 <strong>ยืนยันตัวตนผ่านเลขบัตรประชาชน 13 หลัก</strong>: ระบุเพียงเลขประจำตัวประชาชน 13 หลักตามทะเบียน เข้าถึงสิทธิ์การใช้งานได้โดยไม่ต้องใช้รหัสผ่าน
                   </p>
                 </div>
 
@@ -2855,82 +2855,11 @@ export default function App() {
                       type="text"
                       required
                       maxLength={17}
-                      placeholder="กรอกเลขประจำตัวประชาชน 13 หลัก (เช่น 3-1903-00501-11-1)..."
+                      placeholder="กรอกเลขประจำตัวประชาชน 13 หลัก..."
                       value={vhvLoginName}
                       onChange={(e) => setVhvLoginName(e.target.value)}
                       className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 focus:bg-white focus:outline-none transition-all font-mono placeholder:font-sans font-bold text-slate-900"
                     />
-                  </div>
-
-                  {/* Quick Select Buttons from Registered Database */}
-                  <div className="space-y-1.5 pt-1">
-                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                      หรือเลือกด่วนตามเลขบัตรประชาชนในทะเบียน:
-                    </p>
-                    <div className="flex flex-col gap-1.5 max-h-[170px] overflow-y-auto custom-scrollbar p-1">
-                      {vhvs.map((v) => (
-                        <button
-                          key={v.id}
-                          type="button"
-                          onClick={() => handleVhvLogin(undefined, v.cid || v.name)}
-                          className="w-full p-2 bg-white hover:bg-emerald-50/60 border border-slate-200 hover:border-emerald-300 rounded-xl text-left transition-all cursor-pointer flex items-center justify-between group shadow-2xs"
-                        >
-                          <div>
-                            <div className="text-xs font-bold text-slate-800 group-hover:text-emerald-700 flex items-center gap-1.5">
-                              <span>{v.name}</span>
-                            </div>
-                            <div className="text-[10px] text-emerald-800 font-mono font-semibold mt-0.5">
-                              เลขบัตร: {v.cid || 'ไม่มีเลขบัตร'}
-                            </div>
-                          </div>
-                          <span className="text-[9px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full shrink-0">
-                            {v.isCaregiver ? 'อสม. + Caregiver + ทุนหนุนใจ' : 'อสม. ประจำหมู่บ้าน'}
-                          </span>
-                        </button>
-                      ))}
-
-                      {caregivers.map((c) => (
-                        <button
-                          key={c.id}
-                          type="button"
-                          onClick={() => handleVhvLogin(undefined, c.cid || c.name)}
-                          className="w-full p-2 bg-white hover:bg-blue-50/60 border border-slate-200 hover:border-blue-300 rounded-xl text-left transition-all cursor-pointer flex items-center justify-between group shadow-2xs"
-                        >
-                          <div>
-                            <div className="text-xs font-bold text-slate-800 group-hover:text-blue-700">
-                              {c.name}
-                            </div>
-                            <div className="text-[10px] text-blue-800 font-mono font-semibold mt-0.5">
-                              เลขบัตร: {c.cid || 'ไม่มีเลขบัตร'} ({c.relationship})
-                            </div>
-                          </div>
-                          <span className="text-[9px] font-bold bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full shrink-0">
-                            Caregiver + ทุนหนุนใจ
-                          </span>
-                        </button>
-                      ))}
-
-                      {benefactors.map((b) => (
-                        <button
-                          key={b.id}
-                          type="button"
-                          onClick={() => handleVhvLogin(undefined, b.cid || b.name)}
-                          className="w-full p-2 bg-white hover:bg-amber-50/60 border border-slate-200 hover:border-amber-300 rounded-xl text-left transition-all cursor-pointer flex items-center justify-between group shadow-2xs"
-                        >
-                          <div>
-                            <div className="text-xs font-bold text-slate-800 group-hover:text-amber-700">
-                              {b.name}
-                            </div>
-                            <div className="text-[10px] text-amber-800 font-mono font-semibold mt-0.5">
-                              เลขบัตร: {b.cid || 'ไม่มีเลขบัตร'} ({b.moo})
-                            </div>
-                          </div>
-                          <span className="text-[9px] font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full shrink-0">
-                            คลังทุนหนุนใจ
-                          </span>
-                        </button>
-                      ))}
-                    </div>
                   </div>
 
                   <button
