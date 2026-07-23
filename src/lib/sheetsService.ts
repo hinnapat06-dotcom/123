@@ -1,9 +1,10 @@
 import { Patient, Activity, PatientCategory, ActivityType, ActivityStatus } from '../types';
+import { SOC_PATIENTS } from '../data/socPatients';
 
 // Standard sheet title in user's Google Drive
 const SPREADSHEET_TITLE = 'ตำบลไผ่ต่ำ - ระบบจัดการสุขภาพ';
 
-export const SEED_PATIENTS: Patient[] = [
+const BASE_SEED_PATIENTS: Patient[] = [
   {
     id: 'HN001',
     name: "ผู้ป่วย (บ้านเลขที่ 4/1)",
@@ -720,6 +721,8 @@ export const SEED_PATIENTS: Patient[] = [
     phone: '081-999-0055',
   },
 ];
+
+export const SEED_PATIENTS: Patient[] = [...BASE_SEED_PATIENTS, ...SOC_PATIENTS];
 
 export const SEED_ACTIVITIES: Activity[] = [
   {

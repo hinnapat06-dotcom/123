@@ -463,6 +463,12 @@ export default function App() {
   });
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [categoryFilter, setCategoryFilter] = useState<PatientCategory | 'ทั้งหมด'>('ทั้งหมด');
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(15);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, categoryFilter]);
   const [selectedDetailItem, setSelectedDetailItem] = useState<{ type: 'อสม' | 'ผู้ป่วย' | 'ผู้ดูแล', name: string, data?: any } | null>(null);
   
   // New Report Modal
@@ -5535,7 +5541,7 @@ export default function App() {
                             </td>
                           </tr>
                         ) : (
-                          filteredPatients.map((p) => (
+                          filteredPatients.slice((currentPage - 1) * pageSize, currentPage * pageSize).map((p) => (
                             <tr key={p.id} className="hover:bg-slate-50/50 transition-colors">
                               <td className="p-4 pl-6 font-mono text-[11px] font-bold text-slate-500">{p.id}</td>
                               <td className="p-4 font-bold text-slate-800">{p.name}</td>
@@ -5596,6 +5602,34 @@ export default function App() {
                       </tbody>
                     </table>
                   </div>
+
+                  {/* Pagination Controls */}
+                  {filteredPatients.length > 0 && (
+                    <div className="px-6 py-3 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-600 gap-2">
+                      <div className="font-medium">
+                        แสดงข้อมูล <span className="font-bold text-slate-900">{(currentPage - 1) * pageSize + 1} - {Math.min(currentPage * pageSize, filteredPatients.length)}</span> จากทั้งหมด <span className="font-bold text-emerald-700">{filteredPatients.length} ราย</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <button
+                          disabled={currentPage === 1}
+                          onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                          className="px-3 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed font-medium shadow-sm transition-all cursor-pointer"
+                        >
+                          ‹ หน้าก่อนหน้า
+                        </button>
+                        <span className="font-bold px-2 text-slate-700">
+                          หน้า {currentPage} / {Math.ceil(filteredPatients.length / pageSize) || 1}
+                        </span>
+                        <button
+                          disabled={currentPage >= Math.ceil(filteredPatients.length / pageSize)}
+                          onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(filteredPatients.length / pageSize)))}
+                          className="px-3 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed font-medium shadow-sm transition-all cursor-pointer"
+                        >
+                          หน้าถัดไป ›
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </motion.div>
             )}
