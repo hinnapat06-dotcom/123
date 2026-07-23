@@ -15,7 +15,11 @@ import {
   UserRole, 
   UserAccessLog, 
   NetworkLog,
-  MapStyleOption 
+  MapStyleOption,
+  PatientCategory,
+  ActivityType,
+  ActivityStatus,
+  DashboardStats
 } from './types';
 import { 
   Heart, 
@@ -83,7 +87,6 @@ import {
 import { googleSignIn, googleSignOut, initAuth, getAccessToken } from './lib/firebase';
 import { SheetsService, SEED_PATIENTS, SEED_ACTIVITIES } from './lib/sheetsService';
 import { exportAllToExcel, exportSingleTableToExcel } from './lib/excelExport';
-import { Patient, Activity, PatientCategory, ActivityType, ActivityStatus, DashboardStats, UserAccessLog } from './types';
 import { CoinExchangeWidget } from './components/CoinExchangeWidget';
 
 const GoldCoinIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
@@ -1100,43 +1103,51 @@ export default function App() {
 
   const handleVhvLogin = (e?: React.FormEvent, selectedInput?: string) => {
     if (e) e.preventDefault();
-    const rawInput = (selectedInput || vhvLoginName || mockStaffName).trim();
+    const rawInput = (selectedInput || vhvLoginName || '').trim();
     if (!rawInput) return;
 
     // Standardize input (strip spaces/hyphens for citizen ID checks)
     const cleanDigits = rawInput.replace(/\D/g, '');
     
-    // Look up in registered VHVs, Caregivers, and Benefactors database
+    // Look up in registered VHVs, Caregivers, Benefactors, and Patients database
     const matchedVhv = vhvs.find(v => 
+      (cleanDigits.length >= 8 && v.cid && v.cid.replace(/\D/g, '') === cleanDigits) ||
       (v.cid && v.cid.replace(/\D/g, '') === cleanDigits) ||
-      v.name.toLowerCase().includes(rawInput.toLowerCase()) ||
-      rawInput.toLowerCase().includes(v.name.toLowerCase())
+      (v.name && v.name.trim().toLowerCase() === rawInput.toLowerCase())
     );
 
     const matchedCg = caregivers.find(c => 
+      (cleanDigits.length >= 8 && c.cid && c.cid.replace(/\D/g, '') === cleanDigits) ||
       (c.cid && c.cid.replace(/\D/g, '') === cleanDigits) ||
-      c.name.toLowerCase().includes(rawInput.toLowerCase()) ||
-      rawInput.toLowerCase().includes(c.name.toLowerCase())
+      (c.name && c.name.trim().toLowerCase() === rawInput.toLowerCase())
     );
 
     const matchedBen = benefactors.find(b =>
+      (cleanDigits.length >= 8 && b.cid && b.cid.replace(/\D/g, '') === cleanDigits) ||
       (b.cid && b.cid.replace(/\D/g, '') === cleanDigits) ||
-      b.name.toLowerCase().includes(rawInput.toLowerCase()) ||
-      rawInput.toLowerCase().includes(b.name.toLowerCase())
+      (b.name && b.name.trim().toLowerCase() === rawInput.toLowerCase())
     );
 
     const matchedPatient = patients.find(p =>
+      (cleanDigits.length >= 8 && p.cid && p.cid.replace(/\D/g, '') === cleanDigits) ||
       (p.cid && p.cid.replace(/\D/g, '') === cleanDigits) ||
-      p.name.toLowerCase().includes(rawInput.toLowerCase()) ||
-      rawInput.toLowerCase().includes(p.name.toLowerCase())
+      (p.name && p.name.trim().toLowerCase() === rawInput.toLowerCase())
     );
+
+    const matchedAccount = matchedVhv || matchedCg || matchedBen || matchedPatient;
+
+    if (!matchedAccount) {
+      alert('❌ ไม่พบเลขประจำตัวประชาชน หรือรายชื่อนี้ในระบบทะเบียน\n\nระบบเปิดให้เข้าใช้งานเฉพาะบุคคลที่ได้รับการลงทะเบียนในระบบเรียบร้อยแล้วเท่านั้น กรุณาตรวจสอบเลขบัตร 13 หลัก หรือติดต่อเจ้าหน้าที่เพื่อลงทะเบียนข้อมูล');
+      addLog('Auth', `เข้าสู่ระบบไม่สำเร็จ: ไม่พบเลขประจำตัวประชาชน/ชื่อ ${rawInput} ในระบบทะเบียน`, 'error');
+      return;
+    }
 
     // Resolved Name & CID
     const resolvedName = matchedVhv?.name || matchedCg?.name || matchedBen?.name || matchedPatient?.name || rawInput;
     const resolvedCid = matchedVhv?.cid || matchedCg?.cid || matchedBen?.cid || matchedPatient?.cid || (cleanDigits.length === 13 ? rawInput : '');
 
     // Unified Roles (อสม. + Caregiver ผู้ดูแล + คลังทุนหนุนใจ/ผู้ทำคุณประโยชน์)
-    const isVhvRole = Boolean(matchedVhv) || rawInput.includes('อสม') || (!matchedCg && !matchedBen);
+    const isVhvRole = Boolean(matchedVhv) || (!matchedCg && !matchedBen);
     const isCaregiverRole = Boolean(matchedCg) || Boolean(matchedVhv?.isCaregiver) || patients.some(p => p.caregiver && p.caregiver.includes(resolvedName));
     const isBeneficiaryRole = Boolean(matchedBen) || Boolean(matchedCg?.isBeneficiary) || Boolean(matchedVhv?.isBeneficiary) || true; // คลังทุนหนุนใจ
 
@@ -1218,37 +1229,27 @@ export default function App() {
   };
 
   const handleLogout = async () => {
-    if (window.confirm('คุณต้องการออกจากระบบการจัดการสุขภาพใช่หรือไม่?')) {
-      addLog('Auth', 'กำลังทำการออกจากระบบ...', 'pending');
-      
-      localStorage.removeItem('stitchsync_role');
-      localStorage.removeItem('stitchsync_user');
-      localStorage.removeItem('stitchsync_token');
-      
-      if (token && token !== 'mock-staff-token') {
-        try {
-          await googleSignOut();
-        } catch (e) {
-          console.error(e);
-        }
+    addLog('Auth', 'กำลังทำการออกจากระบบ...', 'pending');
+    
+    localStorage.removeItem('stitchsync_role');
+    localStorage.removeItem('stitchsync_user');
+    localStorage.removeItem('stitchsync_token');
+    
+    if (token && token !== 'mock-staff-token' && token !== 'vhv-no-pass-token') {
+      try {
+        await googleSignOut();
+      } catch (e) {
+        console.error('Signout error:', e);
       }
-      
-      setUser(null);
-      setToken(null);
-      setUserRole('public');
-      setNeedsAuth(false);
-      
-      // Reload registered patients and activities from local storage so the database list remains accessible
-      const savedPatients = localStorage.getItem('stitchsync_patients');
-      if (savedPatients !== null) {
-        try { setPatients(JSON.parse(savedPatients)); } catch(e){}
-      }
-      const savedActivities = localStorage.getItem('stitchsync_activities');
-      if (savedActivities !== null) {
-        try { setActivities(JSON.parse(savedActivities)); } catch(e){}
-      }
-      addLog('Auth', 'ออกจากระบบเรียบร้อย (สลับเป็นสิทธิ์การเข้าชมสาธารณะ)', 'success');
     }
+    
+    setUser(null);
+    setToken(null);
+    setUserRole(null);
+    setNeedsAuth(true);
+    setIsMobileMenuOpen(false);
+    
+    addLog('Auth', 'ออกจากระบบเรียบร้อย กลับสู่หน้าลงชื่อเข้าใช้งาน', 'success');
   };
 
   // Fetch from Google Sheets Database
@@ -1344,9 +1345,25 @@ export default function App() {
       try {
         const localPatients = localStorage.getItem('stitchsync_patients');
         const localActivities = localStorage.getItem('stitchsync_activities');
-        let parsedPatients = localPatients ? JSON.parse(localPatients) : [];
-        let loadedPatients: Patient[] = (Array.isArray(parsedPatients) && parsedPatients.length >= SEED_PATIENTS.length) ? parsedPatients : SEED_PATIENTS;
-        let loadedActivities: Activity[] = localActivities ? JSON.parse(localActivities) : SEED_ACTIVITIES;
+        let loadedPatients: Patient[] = SEED_PATIENTS;
+        let loadedActivities: Activity[] = SEED_ACTIVITIES;
+
+        if (localPatients) {
+          try {
+            const parsed = JSON.parse(localPatients);
+            if (Array.isArray(parsed) && parsed.length >= SEED_PATIENTS.length) {
+              loadedPatients = parsed;
+            }
+          } catch (e) {}
+        }
+        if (localActivities) {
+          try {
+            const parsedAct = JSON.parse(localActivities);
+            if (Array.isArray(parsedAct)) {
+              loadedActivities = parsedAct;
+            }
+          } catch (e) {}
+        }
 
         if (!localPatients) {
           localStorage.setItem('stitchsync_patients', JSON.stringify(loadedPatients));
