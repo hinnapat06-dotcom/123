@@ -1,5 +1,22 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { INITIAL_VHVS_LIST } from './data/initialVhvs';
+import { INITIAL_CAREGIVERS_LIST } from './data/initialCaregivers';
+import { INITIAL_BENEFACTORS_LIST } from './data/initialBenefactors';
+import { UserProfileModal } from './components/UserProfileModal';
+import { DetailViewModal } from './components/DetailViewModal';
+import { 
+  Patient, 
+  Activity, 
+  VhvItem, 
+  CaregiverItem, 
+  BenefactorItem, 
+  UserProfile, 
+  UserRole, 
+  UserAccessLog, 
+  NetworkLog,
+  MapStyleOption 
+} from './types';
 import { 
   Heart, 
   MapPin, 
@@ -39,7 +56,29 @@ import {
   Upload,
   Edit3,
   Phone,
-  Building
+  Building,
+  Layers,
+  Eye,
+  Droplets,
+  Sun,
+  CloudRain,
+  Maximize2,
+  Compass,
+  Mountain,
+  Sliders,
+  Zap,
+  Navigation,
+  Ruler,
+  Thermometer,
+  Wind,
+  Crosshair,
+  Grid,
+  Columns,
+  Flame,
+  SlidersHorizontal,
+  ArrowUp,
+  ArrowDown,
+  GripVertical
 } from 'lucide-react';
 import { googleSignIn, googleSignOut, initAuth, getAccessToken } from './lib/firebase';
 import { SheetsService, SEED_PATIENTS, SEED_ACTIVITIES } from './lib/sheetsService';
@@ -208,6 +247,14 @@ export default function App() {
   const [loading, setLoading] = useState<boolean>(true);
   const [syncing, setSyncing] = useState<boolean>(false);
   const [currentTab, setCurrentTab] = useState<'dashboard' | 'map' | 'vhv' | 'patient' | 'caregiver' | 'analytics' | 'logs' | 'team' | 'import'>('dashboard');
+
+  // Map 2: Main Thailand & Phai Tam Clear Google Maps Controls
+  const [mapDisplayMode, setMapDisplayMode] = useState<'split' | 'map1' | 'map2'>('split');
+  const [map2Type, setMap2Type] = useState<'m' | 'k' | 'p' | 'h'>('m'); // m=roadmap, k=satellite, p=terrain, h=hybrid
+  const [map2Query, setMap2Query] = useState<string>('Tambon Phai Tam, Nong Khae District, Saraburi, Thailand');
+  const [map2Zoom, setMap2Zoom] = useState<number>(14);
+  const [map2LocationLabel, setMap2LocationLabel] = useState<string>('ตำบลไผ่ต่ำ (อ.หนองแค จ.สระบุรี)');
+  const [map2SearchInput, setMap2SearchInput] = useState<string>('');
 
   // Google My Maps Importer States
   const [importedPatients, setImportedPatients] = useState<Patient[]>(PHAI_TAM_MY_MAPS_PATIENTS);
@@ -393,7 +440,10 @@ export default function App() {
     try {
       const saved = localStorage.getItem('stitchsync_patients');
       if (saved !== null) {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length >= SEED_PATIENTS.length) {
+          return parsed;
+        }
       }
     } catch (e) {}
     return SEED_PATIENTS;
@@ -423,6 +473,7 @@ export default function App() {
   const [visitStatus, setVisitStatus] = useState<ActivityStatus>('Normal');
 
   // New Patient Fields
+  const [newPatientCid, setNewPatientCid] = useState<string>('');
   const [newPatientName, setNewPatientName] = useState<string>('');
   const [newPatientCategory, setNewPatientCategory] = useState<PatientCategory>('ติดสังคม');
   const [newPatientAddress, setNewPatientAddress] = useState<string>('');
@@ -433,6 +484,7 @@ export default function App() {
 
   // Edit Patient Fields
   const [editPatientId, setEditPatientId] = useState<string>('');
+  const [editPatientCid, setEditPatientCid] = useState<string>('');
   const [editPatientName, setEditPatientName] = useState<string>('');
   const [editPatientCategory, setEditPatientCategory] = useState<PatientCategory>('ติดสังคม');
   const [editPatientAddress, setEditPatientAddress] = useState<string>('');
@@ -448,66 +500,70 @@ export default function App() {
   const [vhvs, setVhvs] = useState<{ id: string; cid: string; name: string; phone: string; address: string; moo?: string; type: 'อสม' | 'จิตอาสา'; isCaregiver?: boolean; isBeneficiary?: boolean }[]>(() => {
     try {
       const saved = localStorage.getItem('stitchsync_vhvs');
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length >= INITIAL_VHVS_LIST.length) return parsed;
+      }
     } catch (e) {}
-    return [
-      { id: 'VHV-001', cid: '3-1002-00123-45-1', name: 'อสม. ประกายดาว สุขสำราญ', phone: '081-555-1111', address: 'บ้านเลขที่ 12 หมู่ 5 ต.ไผ่ต่ำ', moo: 'หมู่ 5', type: 'อสม', isCaregiver: true, isBeneficiary: true },
-      { id: 'VHV-002', cid: '3-1002-00234-56-2', name: 'อสม. รัตนาภรณ์ รักษ์ดี', phone: '082-666-2222', address: 'บ้านเลขที่ 24 หมู่ 1 ต.ไผ่ต่ำ', moo: 'หมู่ 1', type: 'อสม', isCaregiver: true, isBeneficiary: false },
-      { id: 'VHV-003', cid: '3-1002-00345-67-3', name: 'อสม. สุทิน บัวงาม', phone: '083-777-3333', address: 'บ้านเลขที่ 3 หมู่ 2 ต.ไผ่ต่ำ', moo: 'หมู่ 2', type: 'อสม', isCaregiver: false, isBeneficiary: false },
-      { id: 'VHV-004', cid: '3-1002-00456-78-4', name: 'อสม. สายใจ แก้วระย้า', phone: '084-888-4444', address: 'บ้านเลขที่ 8 หมู่ 3 ต.ไผ่ต่ำ', moo: 'หมู่ 3', type: 'อสม', isCaregiver: true, isBeneficiary: false },
-      { id: 'VHV-005', cid: '3-1002-00567-89-5', name: 'อสม. วิจิตร ใจอารีย์', phone: '085-999-5555', address: 'บ้านเลขที่ 15 หมู่ 4 ต.ไผ่ต่ำ', moo: 'หมู่ 4', type: 'อสม', isCaregiver: false, isBeneficiary: false },
-    ];
+    return INITIAL_VHVS_LIST;
   });
 
   // Registered Caregivers state (พร้อมเลขบัตรประชาชน 13 หลัก)
   const [caregivers, setCaregivers] = useState<{ id: string; cid: string; name: string; phone: string; address: string; moo?: string; relationship: string; isCaregiver?: boolean; isBeneficiary?: boolean }[]>(() => {
     try {
       const saved = localStorage.getItem('stitchsync_caregivers');
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length >= INITIAL_CAREGIVERS_LIST.length) {
+          return parsed;
+        }
+      }
     } catch (e) {}
-    return [
-      { id: 'CG-001', cid: '3-1002-00678-90-6', name: 'คุณประจบ ดีเสมอ', phone: '081-444-5555', address: 'บ้านเลขที่ 11 หมู่ 5 ต.ไผ่ต่ำ (บุตรสาว คุณยายพะยอม)', moo: 'หมู่ 5', relationship: 'บุตรสาว (ผู้ดูแลและผู้รับทุนหนุนใจ)', isCaregiver: true, isBeneficiary: true },
-      { id: 'CG-002', cid: '3-1002-00789-01-7', name: 'คุณสมจิต วาจาดี', phone: '082-555-6666', address: 'บ้านเลขที่ 4 หมู่ 1 ต.ไผ่ต่ำ (ภรรยา คุณตาประกอบ)', moo: 'หมู่ 1', relationship: 'ภรรยา', isCaregiver: true, isBeneficiary: true },
-      { id: 'CG-003', cid: '3-1002-00890-12-8', name: 'คุณสายชล เพลินจิต', phone: '083-666-7777', address: 'บ้านเลขที่ 90 หมู่ 2 ต.ไผ่ต่ำ (บุตรชาย คุณป้าสมจิต)', moo: 'หมู่ 2', relationship: 'บุตรชาย', isCaregiver: true, isBeneficiary: false },
-    ];
+    return INITIAL_CAREGIVERS_LIST as any;
   });
 
   // Registered Benefactors state (ผู้ทำคุณประโยชน์)
-  const [benefactors, setBenefactors] = useState<{ id: string; name: string; phone: string; address: string; moo?: string; contribution: string }[]>(() => {
+  const [benefactors, setBenefactors] = useState<BenefactorItem[]>(() => {
     try {
       const saved = localStorage.getItem('stitchsync_benefactors');
       if (saved) return JSON.parse(saved);
     } catch (e) {}
-    return [
-      { id: 'BEN-001', name: 'คุณสมชาย ใจดี (ผู้ใหญ่บ้านหมู่ 1)', phone: '081-111-2222', address: 'บ้านเลขที่ 1 หมู่ 1 ต.ไผ่ต่ำ', moo: 'หมู่ 1', contribution: 'บริจาคเตียงผู้ป่วยและอุปกรณ์ทางการแพทย์ 2 ชุด' },
-      { id: 'BEN-002', name: 'คุณวิภา สุขสวัสดิ์', phone: '082-222-3333', address: 'บ้านเลขที่ 45 หมู่ 3 ต.ไผ่ต่ำ', moo: 'หมู่ 3', contribution: 'สนับสนุนผ้าอ้อมผู้ใหญ่และถุงยังชีพประจำเดือน' },
-      { id: 'BEN-003', name: 'มูลนิธิไผ่ต่ำกุศลสงเคราะห์', phone: '083-333-4444', address: 'บ้านเลขที่ 88 หมู่ 5 ต.ไผ่ต่ำ', moo: 'หมู่ 5', contribution: 'สนับสนุนงบประมาณปรับปรุงสภาพบ้านผู้ป่วยภาวะพึ่งพิง' },
-    ];
+    return INITIAL_BENEFACTORS_LIST;
   });
 
   // Form fields for new registrations
   const [newVhvName, setNewVhvName] = useState<string>('');
+  const [newVhvCid, setNewVhvCid] = useState<string>('');
   const [newVhvPhone, setNewVhvPhone] = useState<string>('');
   const [newVhvAddress, setNewVhvAddress] = useState<string>('');
   const [newVhvMoo, setNewVhvMoo] = useState<string>('หมู่ 1');
   const [newVhvType, setNewVhvType] = useState<'อสม' | 'จิตอาสา'>('อสม');
 
   const [newCgName, setNewCgName] = useState<string>('');
+  const [newCgCid, setNewCgCid] = useState<string>('');
   const [newCgPhone, setNewCgPhone] = useState<string>('');
   const [newCgAddress, setNewCgAddress] = useState<string>('');
   const [newCgMoo, setNewCgMoo] = useState<string>('หมู่ 1');
   const [newCgRelationship, setNewCgRelationship] = useState<string>('ญาติ');
 
   const [newBenName, setNewBenName] = useState<string>('');
+  const [newBenCid, setNewBenCid] = useState<string>('');
   const [newBenPhone, setNewBenPhone] = useState<string>('');
   const [newBenAddress, setNewBenAddress] = useState<string>('');
   const [newBenMoo, setNewBenMoo] = useState<string>('หมู่ 1');
   const [newBenContribution, setNewBenContribution] = useState<string>('');
 
+  // Drag and drop states for reordering
+  const [draggedVhvId, setDraggedVhvId] = useState<string | null>(null);
+  const [draggedPatientId, setDraggedPatientId] = useState<string | null>(null);
+  const [draggedCaregiverId, setDraggedCaregiverId] = useState<string | null>(null);
+  const [draggedBenefactorId, setDraggedBenefactorId] = useState<string | null>(null);
+
   // Edit VHV Modal States
   const [isEditVhvModalOpen, setIsEditVhvModalOpen] = useState<boolean>(false);
   const [editVhvId, setEditVhvId] = useState<string>('');
   const [editVhvName, setEditVhvName] = useState<string>('');
+  const [editVhvCid, setEditVhvCid] = useState<string>('');
   const [editVhvPhone, setEditVhvPhone] = useState<string>('');
   const [editVhvAddress, setEditVhvAddress] = useState<string>('');
   const [editVhvMoo, setEditVhvMoo] = useState<string>('หมู่ 1');
@@ -517,6 +573,7 @@ export default function App() {
   const [isEditCgModalOpen, setIsEditCgModalOpen] = useState<boolean>(false);
   const [editCgId, setEditCgId] = useState<string>('');
   const [editCgName, setEditCgName] = useState<string>('');
+  const [editCgCid, setEditCgCid] = useState<string>('');
   const [editCgPhone, setEditCgPhone] = useState<string>('');
   const [editCgAddress, setEditCgAddress] = useState<string>('');
   const [editCgMoo, setEditCgMoo] = useState<string>('หมู่ 1');
@@ -526,6 +583,7 @@ export default function App() {
   const [isEditBenModalOpen, setIsEditBenModalOpen] = useState<boolean>(false);
   const [editBenId, setEditBenId] = useState<string>('');
   const [editBenName, setEditBenName] = useState<string>('');
+  const [editBenCid, setEditBenCid] = useState<string>('');
   const [editBenPhone, setEditBenPhone] = useState<string>('');
   const [editBenAddress, setEditBenAddress] = useState<string>('');
   const [editBenMoo, setEditBenMoo] = useState<string>('หมู่ 1');
@@ -557,40 +615,70 @@ export default function App() {
   const [ptSearchQuery, setPtSearchQuery] = useState<string>('');
   const [ptMooFilter, setPtMooFilter] = useState<string>('ทั้งหมด');
 
-  // Precomputed filtered lists for VHV, Caregivers, and Patients
+  // Precomputed filtered lists for VHV, Caregivers, Benefactors, and Patients (Sorted by Moo 1 to Moo 8)
+  const getMooNumber = (item: { moo?: string; address?: string }) => {
+    const str = item.moo || item.address || '';
+    const match = str.match(/หมู่\s*(\d+)/i) || str.match(/ม\.(\d+)/i) || str.match(/(\d+)/);
+    return match ? parseInt(match[1], 10) : 999;
+  };
+
   const filteredVhvs = useMemo(() => {
-    return vhvs.filter(v => {
+    const list = vhvs.filter(v => {
       const q = vhvSearchQuery.toLowerCase();
       const matchQuery = !q || v.name.toLowerCase().includes(q) || v.address.toLowerCase().includes(q) || v.phone.includes(q);
       const matchMoo = vhvMooFilter === 'ทั้งหมด' || v.moo === vhvMooFilter || v.address.includes(vhvMooFilter);
       return matchQuery && matchMoo;
     });
+    return list.sort((a, b) => {
+      const mA = getMooNumber(a);
+      const mB = getMooNumber(b);
+      if (mA !== mB) return mA - mB;
+      return a.id.localeCompare(b.id, undefined, { numeric: true });
+    });
   }, [vhvs, vhvSearchQuery, vhvMooFilter]);
 
   const filteredCaregivers = useMemo(() => {
-    return caregivers.filter(c => {
+    const list = caregivers.filter(c => {
       const q = cgSearchQuery.toLowerCase();
       const matchQuery = !q || c.name.toLowerCase().includes(q) || c.address.toLowerCase().includes(q) || c.relationship.toLowerCase().includes(q);
       const matchMoo = cgMooFilter === 'ทั้งหมด' || c.moo === cgMooFilter || c.address.includes(cgMooFilter);
       return matchQuery && matchMoo;
     });
+    return list.sort((a, b) => {
+      const mA = getMooNumber(a);
+      const mB = getMooNumber(b);
+      if (mA !== mB) return mA - mB;
+      return a.id.localeCompare(b.id, undefined, { numeric: true });
+    });
   }, [caregivers, cgSearchQuery, cgMooFilter]);
 
   const filteredBenefactors = useMemo(() => {
-    return benefactors.filter(b => {
+    const list = benefactors.filter(b => {
       const q = benSearchQuery.toLowerCase();
       const matchQuery = !q || b.name.toLowerCase().includes(q) || b.address.toLowerCase().includes(q) || b.contribution.toLowerCase().includes(q) || b.phone.includes(q);
       const matchMoo = benMooFilter === 'ทั้งหมด' || b.moo === benMooFilter || b.address.includes(benMooFilter);
       return matchQuery && matchMoo;
     });
+    return list.sort((a, b) => {
+      const mA = getMooNumber(a);
+      const mB = getMooNumber(b);
+      if (mA !== mB) return mA - mB;
+      return a.id.localeCompare(b.id, undefined, { numeric: true });
+    });
   }, [benefactors, benSearchQuery, benMooFilter]);
 
   const filteredDbPatients = useMemo(() => {
-    return patients.filter(p => {
+    const list = patients.filter(p => {
       const q = ptSearchQuery.toLowerCase();
       const matchQuery = !q || p.name.toLowerCase().includes(q) || p.address.toLowerCase().includes(q) || p.caregiver.toLowerCase().includes(q);
       const matchMoo = ptMooFilter === 'ทั้งหมด' || p.moo === ptMooFilter || p.address.includes(ptMooFilter);
       return matchQuery && matchMoo;
+    });
+    return list.sort((a, b) => {
+      const mA = getMooNumber(a);
+      const mB = getMooNumber(b);
+      if (mA !== mB) return mA - mB;
+      return a.id.localeCompare(b.id, undefined, { numeric: true });
     });
   }, [patients, ptSearchQuery, ptMooFilter]);
 
@@ -1018,7 +1106,7 @@ export default function App() {
     // Standardize input (strip spaces/hyphens for citizen ID checks)
     const cleanDigits = rawInput.replace(/\D/g, '');
     
-    // Look up in registered VHVs and Caregivers database
+    // Look up in registered VHVs, Caregivers, and Benefactors database
     const matchedVhv = vhvs.find(v => 
       (v.cid && v.cid.replace(/\D/g, '') === cleanDigits) ||
       v.name.toLowerCase().includes(rawInput.toLowerCase()) ||
@@ -1031,17 +1119,29 @@ export default function App() {
       rawInput.toLowerCase().includes(c.name.toLowerCase())
     );
 
-    // Resolved Name & CID
-    const resolvedName = matchedVhv?.name || matchedCg?.name || rawInput;
-    const resolvedCid = matchedVhv?.cid || matchedCg?.cid || (cleanDigits.length === 13 ? rawInput : '');
+    const matchedBen = benefactors.find(b =>
+      (b.cid && b.cid.replace(/\D/g, '') === cleanDigits) ||
+      b.name.toLowerCase().includes(rawInput.toLowerCase()) ||
+      rawInput.toLowerCase().includes(b.name.toLowerCase())
+    );
 
-    // Unified Roles (อสม. + Caregiver ผู้ดูแล + ทุนหนุนใจ/ผู้ป่วยภาวะพึ่งพิง)
-    const isVhvRole = Boolean(matchedVhv) || rawInput.includes('อสม') || !matchedCg;
+    const matchedPatient = patients.find(p =>
+      (p.cid && p.cid.replace(/\D/g, '') === cleanDigits) ||
+      p.name.toLowerCase().includes(rawInput.toLowerCase()) ||
+      rawInput.toLowerCase().includes(p.name.toLowerCase())
+    );
+
+    // Resolved Name & CID
+    const resolvedName = matchedVhv?.name || matchedCg?.name || matchedBen?.name || matchedPatient?.name || rawInput;
+    const resolvedCid = matchedVhv?.cid || matchedCg?.cid || matchedBen?.cid || matchedPatient?.cid || (cleanDigits.length === 13 ? rawInput : '');
+
+    // Unified Roles (อสม. + Caregiver ผู้ดูแล + คลังทุนหนุนใจ/ผู้ทำคุณประโยชน์)
+    const isVhvRole = Boolean(matchedVhv) || rawInput.includes('อสม') || (!matchedCg && !matchedBen);
     const isCaregiverRole = Boolean(matchedCg) || Boolean(matchedVhv?.isCaregiver) || patients.some(p => p.caregiver && p.caregiver.includes(resolvedName));
-    const isBeneficiaryRole = Boolean(matchedCg?.isBeneficiary) || Boolean(matchedVhv?.isBeneficiary) || true; // ทุนหนุนใจ
+    const isBeneficiaryRole = Boolean(matchedBen) || Boolean(matchedCg?.isBeneficiary) || Boolean(matchedVhv?.isBeneficiary) || true; // คลังทุนหนุนใจ
 
     setLoading(true);
-    addLog('Auth', `ยืนยันตัวตนผ่านเลขบัตรฯ/ชื่อ: ${resolvedName} [เลขบัตรฯ: ${resolvedCid || 'ระบบลงทะเบียน'}]...`, 'pending');
+    addLog('Auth', `ยืนยันตัวตนด้วยเลขบัตรประชาชน 13 หลัก: ${resolvedName} [เลขบัตรฯ: ${resolvedCid || 'ระบบลงทะเบียน'}]...`, 'pending');
     
     setTimeout(() => {
       const unifiedUser = {
@@ -1054,11 +1154,13 @@ export default function App() {
         isBeneficiary: isBeneficiaryRole
       };
 
-      const roleDisplay = isVhvRole && isCaregiverRole
-        ? 'อสม. ประจำตำบล & Caregiver (ผู้ดูแลผู้ป่วยภาวะพึ่งพิง/ทุนหนุนใจ)'
-        : isVhvRole
-          ? 'อสม. ประจำหมู่บ้าน'
-          : 'Caregiver (ผู้ดูแลผู้ป่วยภาวะพึ่งพิง/ทุนหนุนใจ)';
+      const roleDisplay = matchedBen
+        ? 'ผู้ทำคุณประโยชน์ / คลังทุนหนุนใจ (ตำบลไผ่ต่ำ)'
+        : isVhvRole && isCaregiverRole
+          ? 'อสม. ประจำตำบล & Caregiver (ผู้ดูแลผู้ป่วย/คลังทุนหนุนใจ)'
+          : isVhvRole
+            ? 'อสม. ประจำหมู่บ้าน'
+            : 'Caregiver (ผู้ดูแลผู้ป่วยภาวะพึ่งพิง/คลังทุนหนุนใจ)';
 
       setUser(unifiedUser);
       setToken('vhv-no-pass-token');
@@ -1166,7 +1268,7 @@ export default function App() {
         if (localPatients !== null) {
           try {
             const parsed = JSON.parse(localPatients);
-            if (Array.isArray(parsed)) {
+            if (Array.isArray(parsed) && parsed.length >= SEED_PATIENTS.length) {
               loadedPatients = parsed;
             } else {
               loadedPatients = SEED_PATIENTS;
@@ -1242,7 +1344,8 @@ export default function App() {
       try {
         const localPatients = localStorage.getItem('stitchsync_patients');
         const localActivities = localStorage.getItem('stitchsync_activities');
-        let loadedPatients: Patient[] = localPatients ? JSON.parse(localPatients) : SEED_PATIENTS;
+        let parsedPatients = localPatients ? JSON.parse(localPatients) : [];
+        let loadedPatients: Patient[] = (Array.isArray(parsedPatients) && parsedPatients.length >= SEED_PATIENTS.length) ? parsedPatients : SEED_PATIENTS;
         let loadedActivities: Activity[] = localActivities ? JSON.parse(localActivities) : SEED_ACTIVITIES;
 
         if (!localPatients) {
@@ -1280,18 +1383,6 @@ export default function App() {
     } catch (err: any) {
       console.error('Error exporting Excel:', err);
       addLog('Local DB', `เกิดข้อผิดพลาดการส่งออก Excel: ${err.message}`, 'error');
-    }
-  };
-
-  // Open Google Drive / Google Sheets
-  const handleOpenGoogleDrive = () => {
-    const cachedSpreadId = localStorage.getItem('stitchsync_spreadsheet_id');
-    if (cachedSpreadId) {
-      window.open(`https://docs.google.com/spreadsheets/d/${cachedSpreadId}/edit`, '_blank');
-      addLog('Sheets DB', `เปิด Google Sheets รหัส: ${cachedSpreadId.substring(0, 15)}...`, 'success');
-    } else {
-      window.open('https://drive.google.com/', '_blank');
-      addLog('Sheets DB', 'เปิด Google Drive', 'success');
     }
   };
 
@@ -2054,6 +2145,7 @@ export default function App() {
 
     const newPatient: Patient = {
       id: newId,
+      cid: newPatientCid.trim() || undefined,
       name: newPatientName,
       category: newPatientCategory,
       address: formattedAddress,
@@ -2089,6 +2181,7 @@ export default function App() {
         addLog('Local DB', `ลงทะเบียนผู้ป่วยใหม่ ${newPatientName} (${newId}) [${newPatientMoo}] เรียบร้อย`, 'success');
         
         // Reset
+        setNewPatientCid('');
         setNewPatientName('');
         setNewPatientAddress('');
         setNewPatientMoo('หมู่ 1');
@@ -2113,6 +2206,7 @@ export default function App() {
         await fetchData(token);
 
         // Reset
+        setNewPatientCid('');
         setNewPatientName('');
         setNewPatientAddress('');
         setNewPatientMoo('หมู่ 1');
@@ -2145,6 +2239,7 @@ export default function App() {
 
     const newVhv = {
       id: newId,
+      cid: newVhvCid.trim() || `3-1002-${String(Math.floor(10000 + Math.random() * 90000))}-00-0`,
       name: newVhvName.trim(),
       phone: newVhvPhone.trim() || '08x-xxx-xxxx',
       address: formattedAddress,
@@ -2172,6 +2267,7 @@ export default function App() {
     alert(`ลงทะเบียน อสม. / จิตอาสา "${newVhvName}" (${newVhvMoo}) เรียบร้อยแล้ว!`);
     
     // Reset Form
+    setNewVhvCid('');
     setNewVhvName('');
     setNewVhvPhone('');
     setNewVhvAddress('');
@@ -2195,6 +2291,7 @@ export default function App() {
 
     const newCg = {
       id: newId,
+      cid: newCgCid.trim() || `3-1002-${String(Math.floor(10000 + Math.random() * 90000))}-00-0`,
       name: newCgName.trim(),
       phone: newCgPhone.trim() || '08x-xxx-xxxx',
       address: formattedAddress,
@@ -2222,6 +2319,7 @@ export default function App() {
     alert(`ลงทะเบียนผู้ดูแลหลัก (Caregiver) "${newCgName}" (${newCgMoo}) เรียบร้อยแล้ว!`);
     
     // Reset Form
+    setNewCgCid('');
     setNewCgName('');
     setNewCgPhone('');
     setNewCgAddress('');
@@ -2246,6 +2344,7 @@ export default function App() {
 
     const newBen = {
       id: newId,
+      cid: newBenCid.trim() || undefined,
       name: newBenName.trim(),
       phone: newBenPhone.trim() || '08x-xxx-xxxx',
       address: formattedAddress,
@@ -2273,6 +2372,7 @@ export default function App() {
     alert(`ลงทะเบียนผู้ทำคุณประโยชน์ "${newBenName}" (${newBenMoo}) เรียบร้อยแล้ว!`);
     
     // Reset Form
+    setNewBenCid('');
     setNewBenName('');
     setNewBenPhone('');
     setNewBenAddress('');
@@ -2283,6 +2383,7 @@ export default function App() {
   const openEditPatient = (p: Patient) => {
     setSelectedPatientId(p.id);
     setEditPatientId(p.id);
+    setEditPatientCid(p.cid || '');
     setEditPatientName(p.name);
     setEditPatientCategory(p.category);
     setEditPatientAddress(p.address);
@@ -2312,6 +2413,7 @@ export default function App() {
 
     const updatedPatient: Patient = {
       ...originalPatient,
+      cid: editPatientCid.trim() || originalPatient.cid,
       name: editPatientName,
       category: editPatientCategory,
       address: editPatientAddress || 'ต.ไผ่ต่ำ อ.วิหารแดง',
@@ -2373,8 +2475,9 @@ export default function App() {
   };
 
   // Edit VHV Helpers
-  const openEditVhv = (item: { id: string; name: string; phone: string; address: string; moo?: string; type: 'อสม' | 'จิตอาสา' }) => {
+  const openEditVhv = (item: { id: string; cid?: string; name: string; phone: string; address: string; moo?: string; type: 'อสม' | 'จิตอาสา' }) => {
     setEditVhvId(item.id);
+    setEditVhvCid(item.cid || '');
     setEditVhvName(item.name);
     setEditVhvPhone(item.phone || '');
     setEditVhvAddress(item.address || '');
@@ -2388,6 +2491,7 @@ export default function App() {
     if (!editVhvName.trim()) return;
     const updated = vhvs.map(v => v.id === editVhvId ? {
       ...v,
+      cid: editVhvCid.trim() || v.cid,
       name: editVhvName.trim(),
       phone: editVhvPhone.trim(),
       address: editVhvAddress.trim(),
@@ -2402,8 +2506,9 @@ export default function App() {
   };
 
   // Edit Caregiver Helpers
-  const openEditCg = (item: { id: string; name: string; phone: string; address: string; moo?: string; relationship: string }) => {
+  const openEditCg = (item: { id: string; cid?: string; name: string; phone: string; address: string; moo?: string; relationship: string }) => {
     setEditCgId(item.id);
+    setEditCgCid(item.cid || '');
     setEditCgName(item.name);
     setEditCgPhone(item.phone || '');
     setEditCgAddress(item.address || '');
@@ -2417,6 +2522,7 @@ export default function App() {
     if (!editCgName.trim()) return;
     const updated = caregivers.map(c => c.id === editCgId ? {
       ...c,
+      cid: editCgCid.trim() || c.cid,
       name: editCgName.trim(),
       phone: editCgPhone.trim(),
       address: editCgAddress.trim(),
@@ -2431,12 +2537,13 @@ export default function App() {
   };
 
   // Edit Benefactor Helpers
-  const openEditBen = (item: { id: string; name: string; phone: string; address: string; moo?: string; contribution: string }) => {
+  const openEditBen = (item: { id: string; cid?: string; name: string; phone: string; address: string; moo?: string; contribution: string }) => {
     if (userRole !== 'staff') {
       alert('⚠️ สิทธิ์การใช้งานจำกัด: เฉพาะเจ้าหน้าที่สาธารณสุขเท่านั้นที่ได้รับอนุญาตให้แก้ไขข้อมูลได้');
       return;
     }
     setEditBenId(item.id);
+    setEditBenCid(item.cid || '');
     setEditBenName(item.name);
     setEditBenPhone(item.phone || '');
     setEditBenAddress(item.address || '');
@@ -2454,6 +2561,7 @@ export default function App() {
     if (!editBenName.trim()) return;
     const updated = benefactors.map(b => b.id === editBenId ? {
       ...b,
+      cid: editBenCid.trim() || b.cid,
       name: editBenName.trim(),
       phone: editBenPhone.trim(),
       address: editBenAddress.trim(),
@@ -2465,6 +2573,129 @@ export default function App() {
     addLog('Local DB', `แก้ไขข้อมูลผู้ทำคุณประโยชน์ ${editBenName} สำเร็จ`, 'success');
     alert(`แก้ไขข้อมูลผู้ทำคุณประโยชน์ "${editBenName}" เรียบร้อยแล้ว`);
     setIsEditBenModalOpen(false);
+  };
+
+  // Reorder / Move functions for Patients, VHVs, Caregivers, Benefactors
+  const movePatientById = (id: string, direction: 'up' | 'down') => {
+    if (userRole === 'public') {
+      alert('⚠️ สิทธิ์การใช้งานจำกัด: เฉพาะเจ้าหน้าที่และ อสม. เท่านั้นที่ได้รับอนุญาตให้ปรับเปลี่ยนลำดับรายชื่อ');
+      return;
+    }
+    const index = patients.findIndex(p => p.id === id);
+    if (index === -1) return;
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= patients.length) return;
+    
+    const updated = [...patients];
+    const [moved] = updated.splice(index, 1);
+    updated.splice(targetIndex, 0, moved);
+    setPatients(updated);
+    localStorage.setItem('stitchsync_patients', JSON.stringify(updated));
+    addLog('Local DB', `ปรับลำดับผู้ป่วย: ${moved.name} (${direction === 'up' ? 'เลื่อนขึ้น' : 'เลื่อนลง'})`, 'success');
+  };
+
+  const moveVhvById = (id: string, direction: 'up' | 'down') => {
+    if (userRole === 'public') {
+      alert('⚠️ สิทธิ์การใช้งานจำกัด: เฉพาะเจ้าหน้าที่และ อสม. เท่านั้นที่ได้รับอนุญาตให้ปรับเปลี่ยนลำดับรายชื่อ');
+      return;
+    }
+    const index = vhvs.findIndex(v => v.id === id);
+    if (index === -1) return;
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= vhvs.length) return;
+    
+    const updated = [...vhvs];
+    const [moved] = updated.splice(index, 1);
+    updated.splice(targetIndex, 0, moved);
+    setVhvs(updated);
+    addLog('Local DB', `ปรับลำดับ อสม.: ${moved.name} (${direction === 'up' ? 'เลื่อนขึ้น' : 'เลื่อนลง'})`, 'success');
+  };
+
+  const moveCaregiverById = (id: string, direction: 'up' | 'down') => {
+    if (userRole === 'public') {
+      alert('⚠️ สิทธิ์การใช้งานจำกัด: เฉพาะเจ้าหน้าที่และ อสม. เท่านั้นที่ได้รับอนุญาตให้ปรับเปลี่ยนลำดับรายชื่อ');
+      return;
+    }
+    const index = caregivers.findIndex(c => c.id === id);
+    if (index === -1) return;
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= caregivers.length) return;
+    
+    const updated = [...caregivers];
+    const [moved] = updated.splice(index, 1);
+    updated.splice(targetIndex, 0, moved);
+    setCaregivers(updated);
+    addLog('Local DB', `ปรับลำดับผู้ดูแลหลัก: ${moved.name} (${direction === 'up' ? 'เลื่อนขึ้น' : 'เลื่อนลง'})`, 'success');
+  };
+
+  const moveBenefactorById = (id: string, direction: 'up' | 'down') => {
+    if (userRole === 'public') {
+      alert('⚠️ สิทธิ์การใช้งานจำกัด: เฉพาะเจ้าหน้าที่และ อสม. เท่านั้นที่ได้รับอนุญาตให้ปรับเปลี่ยนลำดับรายชื่อ');
+      return;
+    }
+    const index = benefactors.findIndex(b => b.id === id);
+    if (index === -1) return;
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= benefactors.length) return;
+    
+    const updated = [...benefactors];
+    const [moved] = updated.splice(index, 1);
+    updated.splice(targetIndex, 0, moved);
+    setBenefactors(updated);
+    addLog('Local DB', `ปรับลำดับผู้ทำคุณประโยชน์: ${moved.name} (${direction === 'up' ? 'เลื่อนขึ้น' : 'เลื่อนลง'})`, 'success');
+  };
+
+  // Drag-and-drop handler for direct row reordering
+  const reorderVhvs = (draggedId: string, targetId: string) => {
+    if (draggedId === targetId || userRole === 'public') return;
+    const fromIndex = vhvs.findIndex(v => v.id === draggedId);
+    const toIndex = vhvs.findIndex(v => v.id === targetId);
+    if (fromIndex === -1 || toIndex === -1) return;
+    const updated = [...vhvs];
+    const [moved] = updated.splice(fromIndex, 1);
+    updated.splice(toIndex, 0, moved);
+    setVhvs(updated);
+    localStorage.setItem('stitchsync_vhvs', JSON.stringify(updated));
+    addLog('Local DB', `ย้ายลำดับ อสม. ${moved.name} สำเร็จ`, 'success');
+  };
+
+  const reorderPatients = (draggedId: string, targetId: string) => {
+    if (draggedId === targetId || userRole === 'public') return;
+    const fromIndex = patients.findIndex(p => p.id === draggedId);
+    const toIndex = patients.findIndex(p => p.id === targetId);
+    if (fromIndex === -1 || toIndex === -1) return;
+    const updated = [...patients];
+    const [moved] = updated.splice(fromIndex, 1);
+    updated.splice(toIndex, 0, moved);
+    setPatients(updated);
+    localStorage.setItem('stitchsync_patients', JSON.stringify(updated));
+    addLog('Local DB', `ย้ายลำดับผู้ป่วย ${moved.name} สำเร็จ`, 'success');
+  };
+
+  const reorderCaregivers = (draggedId: string, targetId: string) => {
+    if (draggedId === targetId || userRole === 'public') return;
+    const fromIndex = caregivers.findIndex(c => c.id === draggedId);
+    const toIndex = caregivers.findIndex(c => c.id === targetId);
+    if (fromIndex === -1 || toIndex === -1) return;
+    const updated = [...caregivers];
+    const [moved] = updated.splice(fromIndex, 1);
+    updated.splice(toIndex, 0, moved);
+    setCaregivers(updated);
+    localStorage.setItem('stitchsync_caregivers', JSON.stringify(updated));
+    addLog('Local DB', `ย้ายลำดับผู้ดูแล ${moved.name} สำเร็จ`, 'success');
+  };
+
+  const reorderBenefactors = (draggedId: string, targetId: string) => {
+    if (draggedId === targetId || userRole === 'public') return;
+    const fromIndex = benefactors.findIndex(b => b.id === draggedId);
+    const toIndex = benefactors.findIndex(b => b.id === targetId);
+    if (fromIndex === -1 || toIndex === -1) return;
+    const updated = [...benefactors];
+    const [moved] = updated.splice(fromIndex, 1);
+    updated.splice(toIndex, 0, moved);
+    setBenefactors(updated);
+    localStorage.setItem('stitchsync_benefactors', JSON.stringify(updated));
+    addLog('Local DB', `ย้ายลำดับผู้ทำคุณประโยชน์ ${moved.name} สำเร็จ`, 'success');
   };
 
   // Helper Stats Calculation
@@ -2529,14 +2760,14 @@ export default function App() {
             <button
               type="button"
               onClick={() => setLoginTab('vhv')}
-              className={`flex-1 py-2.5 text-xs font-extrabold rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer ${
+              className={`flex-1 py-2.5 text-xs font-extrabold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                 loginTab === 'vhv'
                   ? 'bg-emerald-600 text-white shadow-md font-black'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               <Users className="w-4 h-4" />
-              <span>2. อสม. (ไม่ต้องใส่รหัส)</span>
+              <span>2. อสม. / Caregiver / คลังทุนหนุนใจ (เลขบัตร 13 หลัก)</span>
             </button>
           </div>
 
@@ -2602,39 +2833,41 @@ export default function App() {
                 </form>
               </div>
             ) : (
-              /* VHV & Caregiver Login Tab - Unified Account with Citizen ID */
+              /* VHV & Caregiver & Benefactors Login Tab - Strictly Citizen ID 13 digits */
               <div className="space-y-4">
                 <div className="p-3.5 bg-emerald-50/80 border border-emerald-150 rounded-2xl text-xs text-emerald-800 space-y-1.5">
                   <p className="font-extrabold flex items-center gap-1.5 text-emerald-900">
                     <UserCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span>ส่วนลงชื่อเข้าใช้งานสำหรับ อสม. / Caregiver / ผู้รับทุนหนุนใจ</span>
+                    <span>เข้าใช้งานสำหรับ อสม. / Caregiver / คลังทุนหนุนใจ</span>
                   </p>
                   <p className="text-[11px] text-emerald-800 leading-relaxed">
-                    💡 <strong>บัญชีเดียวใช้ได้ครบทุกสิทธิ์</strong>: อสม., ผู้ดูแลผู้ป่วย (Caregiver) และผู้รับทุนหนุนใจ/ดูแลผู้ป่วยภาวะพึ่งพิง สามารถใช้ <strong>เลขบัตรประชาชน 13 หลัก</strong> หรือชื่อ-นามสกุล ที่มีในทะเบียนเข้าใช้งานระบบเดียวกันได้ทันที
+                    💡 <strong>ยืนยันตัวตนผ่านเลขบัตรประชาชน 13 หลัก</strong>: ระบุเพียงเลขประจำตัวประชาชน 13 หลักตามทะเบียน เข้าถึงสิทธิ์การใช้งาน อสม., Caregiver (ผู้ดูแล) และคลังทุนหนุนใจได้โดยไม่ต้องใช้รหัสผ่าน
                   </p>
                 </div>
 
                 <form onSubmit={handleVhvLogin} className="space-y-3">
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                      เลขบัตรประชาชน 13 หลัก หรือ ชื่อ-นามสกุล
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1 flex items-center justify-between">
+                      <span>เลขประจำตัวประชาชน 13 หลัก</span>
+                      <span className="text-[10px] text-emerald-600 font-mono">13-digit Thai Citizen ID</span>
                     </label>
                     <input
                       type="text"
                       required
-                      placeholder="กรอกเลขบัตรประชาชน 13 หลัก หรือ ชื่อ-นามสกุล..."
+                      maxLength={17}
+                      placeholder="กรอกเลขประจำตัวประชาชน 13 หลัก (เช่น 3-1903-00501-11-1)..."
                       value={vhvLoginName}
                       onChange={(e) => setVhvLoginName(e.target.value)}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 focus:bg-white focus:outline-none transition-all font-mono placeholder:font-sans"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 focus:bg-white focus:outline-none transition-all font-mono placeholder:font-sans font-bold text-slate-900"
                     />
                   </div>
 
                   {/* Quick Select Buttons from Registered Database */}
                   <div className="space-y-1.5 pt-1">
                     <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                      ตัวเลือกด่วนสำหรับบัญชีในระบบทะเบียน:
+                      หรือเลือกด่วนตามเลขบัตรประชาชนในทะเบียน:
                     </p>
-                    <div className="flex flex-col gap-1.5 max-h-[160px] overflow-y-auto custom-scrollbar p-1">
+                    <div className="flex flex-col gap-1.5 max-h-[170px] overflow-y-auto custom-scrollbar p-1">
                       {vhvs.map((v) => (
                         <button
                           key={v.id}
@@ -2643,11 +2876,11 @@ export default function App() {
                           className="w-full p-2 bg-white hover:bg-emerald-50/60 border border-slate-200 hover:border-emerald-300 rounded-xl text-left transition-all cursor-pointer flex items-center justify-between group shadow-2xs"
                         >
                           <div>
-                            <div className="text-xs font-bold text-slate-800 group-hover:text-emerald-700">
-                              {v.name}
+                            <div className="text-xs font-bold text-slate-800 group-hover:text-emerald-700 flex items-center gap-1.5">
+                              <span>{v.name}</span>
                             </div>
-                            <div className="text-[10px] text-slate-500 font-mono">
-                              เลขบัตร: {v.cid}
+                            <div className="text-[10px] text-emerald-800 font-mono font-semibold mt-0.5">
+                              เลขบัตร: {v.cid || 'ไม่มีเลขบัตร'}
                             </div>
                           </div>
                           <span className="text-[9px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full shrink-0">
@@ -2667,12 +2900,33 @@ export default function App() {
                             <div className="text-xs font-bold text-slate-800 group-hover:text-blue-700">
                               {c.name}
                             </div>
-                            <div className="text-[10px] text-slate-500 font-mono">
-                              เลขบัตร: {c.cid} ({c.relationship})
+                            <div className="text-[10px] text-blue-800 font-mono font-semibold mt-0.5">
+                              เลขบัตร: {c.cid || 'ไม่มีเลขบัตร'} ({c.relationship})
                             </div>
                           </div>
                           <span className="text-[9px] font-bold bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full shrink-0">
                             Caregiver + ทุนหนุนใจ
+                          </span>
+                        </button>
+                      ))}
+
+                      {benefactors.map((b) => (
+                        <button
+                          key={b.id}
+                          type="button"
+                          onClick={() => handleVhvLogin(undefined, b.cid || b.name)}
+                          className="w-full p-2 bg-white hover:bg-amber-50/60 border border-slate-200 hover:border-amber-300 rounded-xl text-left transition-all cursor-pointer flex items-center justify-between group shadow-2xs"
+                        >
+                          <div>
+                            <div className="text-xs font-bold text-slate-800 group-hover:text-amber-700">
+                              {b.name}
+                            </div>
+                            <div className="text-[10px] text-amber-800 font-mono font-semibold mt-0.5">
+                              เลขบัตร: {b.cid || 'ไม่มีเลขบัตร'} ({b.moo})
+                            </div>
+                          </div>
+                          <span className="text-[9px] font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full shrink-0">
+                            คลังทุนหนุนใจ
                           </span>
                         </button>
                       ))}
@@ -2684,7 +2938,7 @@ export default function App() {
                     className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition-all cursor-pointer shadow-sm flex items-center justify-center gap-2 mt-2"
                   >
                     <UserCheck className="w-4 h-4" />
-                    <span>เข้าใช้งานระบบ (เลขบัตรประชาชน / ชื่อบัญชี)</span>
+                    <span>เข้าใช้งานด้วยเลขประจำตัวประชาชน 13 หลัก</span>
                   </button>
                 </form>
               </div>
@@ -3269,6 +3523,21 @@ export default function App() {
                  'โหมดบุคคลทั่วไป'}
               </span>
             </div>
+
+            {/* Quick Map Access Header Button */}
+            <button
+              type="button"
+              onClick={() => setCurrentTab('map')}
+              className={`px-3 py-1 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer border ${
+                currentTab === 'map'
+                  ? 'bg-blue-600 text-white border-blue-500 shadow-xs'
+                  : 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
+              }`}
+              title="เข้าสู่หน้าแผนที่ระบบ"
+            >
+              <MapIcon className="w-3.5 h-3.5" />
+              <span>แผนที่</span>
+            </button>
           </div>
           
           <div className="flex items-center gap-2 sm:gap-4">
@@ -3289,7 +3558,7 @@ export default function App() {
               )}
             </div>
 
-            {/* Excel Download & Google Drive Action Buttons */}
+            {/* Excel Download Action Button */}
             <div className="flex items-center gap-1.5">
               <button
                 type="button"
@@ -3299,16 +3568,6 @@ export default function App() {
               >
                 <FileSpreadsheet className="w-3.5 h-3.5" />
                 <span className="hidden lg:inline">ดาวน์โหลด Excel</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={handleOpenGoogleDrive}
-                className="hidden sm:flex px-2.5 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg text-xs font-bold items-center gap-1.5 shadow-sm transition-all cursor-pointer shrink-0"
-                title="เปิด Google Drive / Google Sheets"
-              >
-                <ExternalLink className="w-3.5 h-3.5 text-blue-600" />
-                <span className="hidden md:inline">Google Drive</span>
               </button>
             </div>
 
@@ -3398,9 +3657,26 @@ export default function App() {
                           <p className="text-[10px] text-slate-400">แบบฟอร์มการบันทึกข้อมูลและฐานข้อมูลปฏิบัติงานรวมประจำตำบล</p>
                         </div>
                       </div>
-                      <span className="text-xs font-extrabold px-3 py-1 bg-blue-50 text-blue-700 border border-blue-100 rounded-full font-mono">
-                        จำนวน: {vhvs.length} คน
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (window.confirm('คุณต้องการโหลด/อัปเดตรายชื่อ อสม. ทั้ง 60 ท่านตามตารางลงทะเบียนล่าสุดใช่หรือไม่?')) {
+                              setVhvs(INITIAL_VHVS_LIST);
+                              localStorage.setItem('stitchsync_vhvs', JSON.stringify(INITIAL_VHVS_LIST));
+                              addLog('Local DB', 'ซิงค์และอัปเดตรายชื่อ อสม. ทั้ง 60 ท่านเข้าสู่ระบบเรียบร้อยแล้ว', 'success');
+                            }
+                          }}
+                          className="px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 shadow-2xs"
+                          title="อัปเดต/ซิงค์รายชื่อ อสม. ทั้ง 60 ท่าน"
+                        >
+                          <RefreshCw className="w-3.5 h-3.5 text-blue-600" />
+                          <span>ซิงค์รายชื่อ 60 อสม.</span>
+                        </button>
+                        <span className="text-xs font-extrabold px-3 py-1 bg-blue-50 text-blue-700 border border-blue-100 rounded-full font-mono">
+                          จำนวน: {vhvs.length} คน
+                        </span>
+                      </div>
                     </div>
 
                     {/* Content Body */}
@@ -3422,6 +3698,18 @@ export default function App() {
                               onChange={(e) => setNewVhvName(e.target.value)}
                               placeholder="เช่น อสม. ดวงใจ แสนสุข"
                               className="w-full text-xs bg-slate-50 border border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 px-3 py-2 rounded-lg"
+                            />
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <label className="text-[11px] font-bold text-slate-600">เลขบัตรประจำตัวประชาชน (13 หลัก)</label>
+                            <input
+                              type="text"
+                              maxLength={17}
+                              value={newVhvCid}
+                              onChange={(e) => setNewVhvCid(e.target.value)}
+                              placeholder="เช่น 3-1002-00123-45-6"
+                              className="w-full text-xs bg-slate-50 border border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 px-3 py-2 rounded-lg font-mono"
                             />
                           </div>
 
@@ -3562,12 +3850,38 @@ export default function App() {
                                   <th className="p-4 font-bold">ประเภท</th>
                                   <th className="p-4 font-bold">เบอร์โทรศัพท์</th>
                                   <th className="p-4 font-bold">ที่อยู่อาศัยหลัก</th>
+                                  <th className="p-4 text-center font-bold">ปรับลำดับ</th>
                                   <th className="p-4 pr-6 text-right font-bold">จัดการ</th>
                                 </tr>
                               </thead>
                               <tbody className="divide-y divide-slate-100">
                                 {filteredVhvs.map((item) => (
-                                  <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
+                                  <tr 
+                                    key={item.id} 
+                                    draggable={userRole !== 'public'}
+                                    onDragStart={(e) => {
+                                      e.dataTransfer.setData('text/plain', item.id);
+                                      setDraggedVhvId(item.id);
+                                    }}
+                                    onDragOver={(e) => {
+                                      e.preventDefault();
+                                      e.dataTransfer.dropEffect = 'move';
+                                    }}
+                                    onDrop={(e) => {
+                                      e.preventDefault();
+                                      const draggedId = e.dataTransfer.getData('text/plain') || draggedVhvId;
+                                      if (draggedId) {
+                                        reorderVhvs(draggedId, item.id);
+                                        setDraggedVhvId(null);
+                                      }
+                                    }}
+                                    onDragEnd={() => setDraggedVhvId(null)}
+                                    className={`hover:bg-slate-50/80 transition-all ${
+                                      draggedVhvId === item.id 
+                                        ? 'opacity-40 bg-blue-50 border-2 border-dashed border-blue-400' 
+                                        : ''
+                                    }`}
+                                  >
                                     <td className="p-4 pl-6 font-mono font-bold text-slate-400">{item.id}</td>
                                     <td 
                                       className="p-4 font-bold text-blue-600 hover:text-blue-800 hover:underline cursor-pointer transition-colors"
@@ -3590,6 +3904,34 @@ export default function App() {
                                     </td>
                                     <td className="p-4 font-mono text-slate-600">{item.phone}</td>
                                     <td className="p-4 text-slate-500 max-w-xs truncate">{item.address}</td>
+                                    <td className="p-4 text-center">
+                                      <div className="flex items-center justify-center gap-1">
+                                        <div
+                                          className="p-1.5 rounded-lg bg-slate-100 hover:bg-blue-100 text-slate-500 hover:text-blue-700 cursor-grab active:cursor-grabbing transition-all shadow-2xs group"
+                                          title="คลิกค้างแล้วลากเพื่อย้ายลำดับ (Drag & Drop) ↕️"
+                                        >
+                                          <GripVertical className="w-3.5 h-3.5" />
+                                        </div>
+                                        <button
+                                          type="button"
+                                          onClick={() => moveVhvById(item.id, 'up')}
+                                          disabled={vhvs.findIndex(v => v.id === item.id) === 0}
+                                          className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 disabled:opacity-25 disabled:cursor-not-allowed transition-all cursor-pointer shadow-2xs"
+                                          title="เลื่อนลำดับขึ้น ⬆️"
+                                        >
+                                          <ArrowUp className="w-3.5 h-3.5" />
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => moveVhvById(item.id, 'down')}
+                                          disabled={vhvs.findIndex(v => v.id === item.id) === vhvs.length - 1}
+                                          className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 disabled:opacity-25 disabled:cursor-not-allowed transition-all cursor-pointer shadow-2xs"
+                                          title="เลื่อนลำดับลง ⬇️"
+                                        >
+                                          <ArrowDown className="w-3.5 h-3.5" />
+                                        </button>
+                                      </div>
+                                    </td>
                                     <td className="p-4 pr-6 text-right">
                                       <div className="flex items-center justify-end gap-2">
                                         <button
@@ -3668,6 +4010,18 @@ export default function App() {
                               onChange={(e) => setNewPatientName(e.target.value)}
                               placeholder="เช่น นายสุขดี เสมอภาค"
                               className="w-full text-xs bg-slate-50 border border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 px-3 py-2 rounded-lg"
+                            />
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <label className="text-[11px] font-bold text-slate-600">เลขบัตรประจำตัวประชาชน (13 หลัก)</label>
+                            <input
+                              type="text"
+                              maxLength={17}
+                              value={newPatientCid}
+                              onChange={(e) => setNewPatientCid(e.target.value)}
+                              placeholder="เช่น 3-1002-00123-45-6"
+                              className="w-full text-xs bg-slate-50 border border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 px-3 py-2 rounded-lg font-mono"
                             />
                           </div>
 
@@ -3901,29 +4255,75 @@ export default function App() {
                                       </p>
                                       <p className="text-[11px] text-slate-500 pt-1 border-t border-slate-100">📍 {item.address}</p>
                                     </div>
-                                    <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-100">
-                                      <button
-                                        type="button"
-                                        onClick={() => openEditPatient(item)}
-                                        className="text-rose-600 hover:text-rose-800 font-bold text-xs cursor-pointer"
-                                      >
-                                        แก้ไข
-                                      </button>
-                                      <span className="text-slate-300">|</span>
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          if (window.confirm(`คุณต้องการลบผู้ป่วยรายนี้ออกจากบัญชีรายชื่อกลุ่มเป้าหมายใช่หรือไม่?`)) {
-                                            const updated = patients.filter(p => p.id !== item.id);
-                                            setPatients(updated);
-                                            localStorage.setItem('stitchsync_patients', JSON.stringify(updated));
-                                            addLog('Local DB', `ลบข้อมูลผู้ป่วย ${item.name} สำเร็จ`, 'success');
-                                          }
-                                        }}
-                                        className="text-rose-500 hover:text-rose-700 font-bold text-xs cursor-pointer"
-                                      >
-                                        ลบข้อมูล
-                                      </button>
+                                    <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+                                      <div className="flex items-center gap-1 bg-slate-50 px-2 py-1 rounded-lg border border-slate-200">
+                                        <span className="text-[10px] text-slate-500 font-bold mr-1">ลำดับ:</span>
+                                        <div
+                                          draggable={userRole !== 'public'}
+                                          onDragStart={(e) => {
+                                            e.dataTransfer.setData('text/plain', item.id);
+                                            setDraggedPatientId(item.id);
+                                          }}
+                                          onDragOver={(e) => {
+                                            e.preventDefault();
+                                            e.dataTransfer.dropEffect = 'move';
+                                          }}
+                                          onDrop={(e) => {
+                                            e.preventDefault();
+                                            const draggedId = e.dataTransfer.getData('text/plain') || draggedPatientId;
+                                            if (draggedId) {
+                                              reorderPatients(draggedId, item.id);
+                                              setDraggedPatientId(null);
+                                            }
+                                          }}
+                                          className="p-1 rounded bg-white hover:bg-rose-50 text-slate-500 hover:text-rose-600 border border-slate-200 cursor-grab active:cursor-grabbing"
+                                          title="คลิกค้างแล้วลากเพื่อย้ายลำดับ (Drag & Drop) ↕️"
+                                        >
+                                          <GripVertical className="w-3 h-3" />
+                                        </div>
+                                        <button
+                                          type="button"
+                                          onClick={() => movePatientById(item.id, 'up')}
+                                          disabled={patients.findIndex(p => p.id === item.id) === 0}
+                                          className="p-1 rounded bg-white hover:bg-slate-100 text-slate-700 disabled:opacity-25 border border-slate-200 cursor-pointer"
+                                          title="เลื่อนลำดับขึ้น ⬆️"
+                                        >
+                                          <ArrowUp className="w-3 h-3" />
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => movePatientById(item.id, 'down')}
+                                          disabled={patients.findIndex(p => p.id === item.id) === patients.length - 1}
+                                          className="p-1 rounded bg-white hover:bg-slate-100 text-slate-700 disabled:opacity-25 border border-slate-200 cursor-pointer"
+                                          title="เลื่อนลำดับลง ⬇️"
+                                        >
+                                          <ArrowDown className="w-3 h-3" />
+                                        </button>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <button
+                                          type="button"
+                                          onClick={() => openEditPatient(item)}
+                                          className="text-rose-600 hover:text-rose-800 font-bold text-xs cursor-pointer"
+                                        >
+                                          แก้ไข
+                                        </button>
+                                        <span className="text-slate-300">|</span>
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            if (window.confirm(`คุณต้องการลบผู้ป่วยรายนี้ออกจากบัญชีรายชื่อกลุ่มเป้าหมายใช่หรือไม่?`)) {
+                                              const updated = patients.filter(p => p.id !== item.id);
+                                              setPatients(updated);
+                                              localStorage.setItem('stitchsync_patients', JSON.stringify(updated));
+                                              addLog('Local DB', `ลบข้อมูลผู้ป่วย ${item.name} สำเร็จ`, 'success');
+                                            }
+                                          }}
+                                          className="text-rose-500 hover:text-rose-700 font-bold text-xs cursor-pointer"
+                                        >
+                                          ลบข้อมูล
+                                        </button>
+                                      </div>
                                     </div>
                                   </div>
                                 ))}
@@ -3939,12 +4339,38 @@ export default function App() {
                                   <th className="p-4 font-bold">กลุ่มคัดกรอง</th>
                                   <th className="p-4 font-bold">อสม. รับผิดชอบ</th>
                                   <th className="p-4 font-bold">ที่อยู่อาศัยหลัก</th>
+                                  <th className="p-4 text-center font-bold">ปรับลำดับ</th>
                                   <th className="p-4 pr-6 text-right font-bold">จัดการ</th>
                                 </tr>
                               </thead>
                               <tbody className="divide-y divide-slate-100">
                                 {filteredDbPatients.map((item) => (
-                                  <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
+                                  <tr 
+                                    key={item.id} 
+                                    draggable={userRole !== 'public'}
+                                    onDragStart={(e) => {
+                                      e.dataTransfer.setData('text/plain', item.id);
+                                      setDraggedPatientId(item.id);
+                                    }}
+                                    onDragOver={(e) => {
+                                      e.preventDefault();
+                                      e.dataTransfer.dropEffect = 'move';
+                                    }}
+                                    onDrop={(e) => {
+                                      e.preventDefault();
+                                      const draggedId = e.dataTransfer.getData('text/plain') || draggedPatientId;
+                                      if (draggedId) {
+                                        reorderPatients(draggedId, item.id);
+                                        setDraggedPatientId(null);
+                                      }
+                                    }}
+                                    onDragEnd={() => setDraggedPatientId(null)}
+                                    className={`hover:bg-slate-50/80 transition-all ${
+                                      draggedPatientId === item.id 
+                                        ? 'opacity-40 bg-rose-50 border-2 border-dashed border-rose-400' 
+                                        : ''
+                                    }`}
+                                  >
                                     <td className="p-4 pl-6 font-mono font-bold text-slate-400">{item.id}</td>
                                     <td 
                                       className="p-4 font-bold text-rose-600 hover:text-rose-800 hover:underline cursor-pointer transition-colors"
@@ -3971,6 +4397,34 @@ export default function App() {
                                     </td>
                                     <td className="p-4 text-slate-700 font-semibold">{item.caregiver}</td>
                                     <td className="p-4 text-slate-500 max-w-xs truncate">{item.address}</td>
+                                    <td className="p-4 text-center">
+                                      <div className="flex items-center justify-center gap-1">
+                                        <div
+                                          className="p-1.5 rounded-lg bg-slate-100 hover:bg-rose-100 text-slate-500 hover:text-rose-700 cursor-grab active:cursor-grabbing transition-all shadow-2xs group"
+                                          title="คลิกค้างแล้วลากเพื่อย้ายลำดับ (Drag & Drop) ↕️"
+                                        >
+                                          <GripVertical className="w-3.5 h-3.5" />
+                                        </div>
+                                        <button
+                                          type="button"
+                                          onClick={() => movePatientById(item.id, 'up')}
+                                          disabled={patients.findIndex(p => p.id === item.id) === 0}
+                                          className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 disabled:opacity-25 disabled:cursor-not-allowed transition-all cursor-pointer shadow-2xs"
+                                          title="เลื่อนลำดับขึ้น ⬆️"
+                                        >
+                                          <ArrowUp className="w-3.5 h-3.5" />
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => movePatientById(item.id, 'down')}
+                                          disabled={patients.findIndex(p => p.id === item.id) === patients.length - 1}
+                                          className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 disabled:opacity-25 disabled:cursor-not-allowed transition-all cursor-pointer shadow-2xs"
+                                          title="เลื่อนลำดับลง ⬇️"
+                                        >
+                                          <ArrowDown className="w-3.5 h-3.5" />
+                                        </button>
+                                      </div>
+                                    </td>
                                     <td className="p-4 pr-6 text-right">
                                       <div className="flex items-center justify-end gap-2">
                                         <button
@@ -4027,9 +4481,26 @@ export default function App() {
                           <p className="text-[10px] text-slate-400">ญาติสนิท, บริบาลหลักประจำบ้านของคนไข้และผู้ป่วยพึ่งพิง</p>
                         </div>
                       </div>
-                      <span className="text-xs font-extrabold px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-full font-mono">
-                        จำนวน: {caregivers.length} คน
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (window.confirm('คุณต้องการโหลด/อัปเดตรายชื่อผู้ดูแลผู้สูงอายุ (Caregiver) ทั้ง 20 ท่านตามตารางลงทะเบียนล่าสุดใช่หรือไม่?')) {
+                              setCaregivers(INITIAL_CAREGIVERS_LIST as any);
+                              localStorage.setItem('stitchsync_caregivers', JSON.stringify(INITIAL_CAREGIVERS_LIST));
+                              addLog('Local DB', 'ซิงค์และอัปเดตรายชื่อ Caregiver ทั้ง 20 ท่านเข้าสู่ระบบเรียบร้อยแล้ว', 'success');
+                            }
+                          }}
+                          className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 shadow-2xs"
+                          title="อัปเดต/ซิงค์รายชื่อ Caregiver ทั้ง 20 ท่าน"
+                        >
+                          <RefreshCw className="w-3.5 h-3.5 text-emerald-600" />
+                          <span>ซิงค์รายชื่อ 20 CG</span>
+                        </button>
+                        <span className="text-xs font-extrabold px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-full font-mono">
+                          จำนวน: {caregivers.length} คน
+                        </span>
+                      </div>
                     </div>
 
                     {/* Content Layout */}
@@ -4051,6 +4522,18 @@ export default function App() {
                               onChange={(e) => setNewCgName(e.target.value)}
                               placeholder="เช่น คุณประจบ ดีเสมอ"
                               className="w-full text-xs bg-slate-50 border border-slate-200 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 px-3 py-2 rounded-lg"
+                            />
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <label className="text-[11px] font-bold text-slate-600">เลขบัตรประจำตัวประชาชน (13 หลัก)</label>
+                            <input
+                              type="text"
+                              maxLength={17}
+                              value={newCgCid}
+                              onChange={(e) => setNewCgCid(e.target.value)}
+                              placeholder="เช่น 3-1002-00678-90-6"
+                              className="w-full text-xs bg-slate-50 border border-slate-200 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 px-3 py-2 rounded-lg font-mono"
                             />
                           </div>
 
@@ -4185,12 +4668,38 @@ export default function App() {
                                   <th className="p-4 font-bold">ความสัมพันธ์</th>
                                   <th className="p-4 font-bold">เบอร์โทรศัพท์</th>
                                   <th className="p-4 font-bold">ที่อยู่อาศัยหลัก</th>
+                                  <th className="p-4 text-center font-bold">ปรับลำดับ</th>
                                   <th className="p-4 pr-6 text-right font-bold">จัดการ</th>
                                 </tr>
                               </thead>
                               <tbody className="divide-y divide-slate-100">
                                 {filteredCaregivers.map((item) => (
-                                  <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
+                                  <tr 
+                                    key={item.id} 
+                                    draggable={userRole !== 'public'}
+                                    onDragStart={(e) => {
+                                      e.dataTransfer.setData('text/plain', item.id);
+                                      setDraggedCaregiverId(item.id);
+                                    }}
+                                    onDragOver={(e) => {
+                                      e.preventDefault();
+                                      e.dataTransfer.dropEffect = 'move';
+                                    }}
+                                    onDrop={(e) => {
+                                      e.preventDefault();
+                                      const draggedId = e.dataTransfer.getData('text/plain') || draggedCaregiverId;
+                                      if (draggedId) {
+                                        reorderCaregivers(draggedId, item.id);
+                                        setDraggedCaregiverId(null);
+                                      }
+                                    }}
+                                    onDragEnd={() => setDraggedCaregiverId(null)}
+                                    className={`hover:bg-slate-50/80 transition-all ${
+                                      draggedCaregiverId === item.id 
+                                        ? 'opacity-40 bg-emerald-50 border-2 border-dashed border-emerald-400' 
+                                        : ''
+                                    }`}
+                                  >
                                     <td className="p-4 pl-6 font-mono font-bold text-slate-400">{item.id}</td>
                                     <td 
                                       className="p-4 font-bold text-emerald-600 hover:text-emerald-800 hover:underline cursor-pointer transition-colors"
@@ -4211,6 +4720,34 @@ export default function App() {
                                     </td>
                                     <td className="p-4 font-mono text-slate-600">{item.phone}</td>
                                     <td className="p-4 text-slate-500 max-w-xs truncate">{item.address}</td>
+                                    <td className="p-4 text-center">
+                                      <div className="flex items-center justify-center gap-1">
+                                        <div
+                                          className="p-1.5 rounded-lg bg-slate-100 hover:bg-emerald-100 text-slate-500 hover:text-emerald-700 cursor-grab active:cursor-grabbing transition-all shadow-2xs group"
+                                          title="คลิกค้างแล้วลากเพื่อย้ายลำดับ (Drag & Drop) ↕️"
+                                        >
+                                          <GripVertical className="w-3.5 h-3.5" />
+                                        </div>
+                                        <button
+                                          type="button"
+                                          onClick={() => moveCaregiverById(item.id, 'up')}
+                                          disabled={caregivers.findIndex(c => c.id === item.id) === 0}
+                                          className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 disabled:opacity-25 disabled:cursor-not-allowed transition-all cursor-pointer shadow-2xs"
+                                          title="เลื่อนลำดับขึ้น ⬆️"
+                                        >
+                                          <ArrowUp className="w-3.5 h-3.5" />
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => moveCaregiverById(item.id, 'down')}
+                                          disabled={caregivers.findIndex(c => c.id === item.id) === caregivers.length - 1}
+                                          className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 disabled:opacity-25 disabled:cursor-not-allowed transition-all cursor-pointer shadow-2xs"
+                                          title="เลื่อนลำดับลง ⬇️"
+                                        >
+                                          <ArrowDown className="w-3.5 h-3.5" />
+                                        </button>
+                                      </div>
+                                    </td>
                                     <td className="p-4 pr-6 text-right">
                                       {userRole === 'staff' ? (
                                         <div className="flex items-center justify-end gap-2">
@@ -4458,12 +4995,38 @@ export default function App() {
                                   <th className="p-4 font-bold">การสนับสนุน / คุณประโยชน์ต่อชุมชน</th>
                                   <th className="p-4 font-bold">เบอร์โทรศัพท์</th>
                                   <th className="p-4 font-bold">ที่อยู่อาศัย / ที่ตั้ง</th>
+                                  <th className="p-4 text-center font-bold">ปรับลำดับ</th>
                                   <th className="p-4 pr-6 text-right font-bold">จัดการ</th>
                                 </tr>
                               </thead>
                               <tbody className="divide-y divide-slate-100">
                                 {filteredBenefactors.map((item) => (
-                                  <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
+                                  <tr 
+                                    key={item.id} 
+                                    draggable={userRole !== 'public'}
+                                    onDragStart={(e) => {
+                                      e.dataTransfer.setData('text/plain', item.id);
+                                      setDraggedBenefactorId(item.id);
+                                    }}
+                                    onDragOver={(e) => {
+                                      e.preventDefault();
+                                      e.dataTransfer.dropEffect = 'move';
+                                    }}
+                                    onDrop={(e) => {
+                                      e.preventDefault();
+                                      const draggedId = e.dataTransfer.getData('text/plain') || draggedBenefactorId;
+                                      if (draggedId) {
+                                        reorderBenefactors(draggedId, item.id);
+                                        setDraggedBenefactorId(null);
+                                      }
+                                    }}
+                                    onDragEnd={() => setDraggedBenefactorId(null)}
+                                    className={`hover:bg-slate-50/80 transition-all ${
+                                      draggedBenefactorId === item.id 
+                                        ? 'opacity-40 bg-amber-50 border-2 border-dashed border-amber-400' 
+                                        : ''
+                                    }`}
+                                  >
                                     <td className="p-4 pl-6 font-mono font-bold text-slate-400">{item.id}</td>
                                     <td 
                                       className="p-4 font-bold text-amber-600 hover:text-amber-800 hover:underline cursor-pointer transition-colors"
@@ -4484,6 +5047,34 @@ export default function App() {
                                     </td>
                                     <td className="p-4 font-mono text-slate-600">{item.phone}</td>
                                     <td className="p-4 text-slate-500 max-w-xs truncate">{item.address}</td>
+                                    <td className="p-4 text-center">
+                                      <div className="flex items-center justify-center gap-1">
+                                        <div
+                                          className="p-1.5 rounded-lg bg-slate-100 hover:bg-amber-100 text-slate-500 hover:text-amber-700 cursor-grab active:cursor-grabbing transition-all shadow-2xs group"
+                                          title="คลิกค้างแล้วลากเพื่อย้ายลำดับ (Drag & Drop) ↕️"
+                                        >
+                                          <GripVertical className="w-3.5 h-3.5" />
+                                        </div>
+                                        <button
+                                          type="button"
+                                          onClick={() => moveBenefactorById(item.id, 'up')}
+                                          disabled={benefactors.findIndex(b => b.id === item.id) === 0}
+                                          className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 disabled:opacity-25 disabled:cursor-not-allowed transition-all cursor-pointer shadow-2xs"
+                                          title="เลื่อนลำดับขึ้น ⬆️"
+                                        >
+                                          <ArrowUp className="w-3.5 h-3.5" />
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => moveBenefactorById(item.id, 'down')}
+                                          disabled={benefactors.findIndex(b => b.id === item.id) === benefactors.length - 1}
+                                          className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 disabled:opacity-25 disabled:cursor-not-allowed transition-all cursor-pointer shadow-2xs"
+                                          title="เลื่อนลำดับลง ⬇️"
+                                        >
+                                          <ArrowDown className="w-3.5 h-3.5" />
+                                        </button>
+                                      </div>
+                                    </td>
                                     <td className="p-4 pr-6 text-right">
                                       {userRole === 'staff' ? (
                                         <div className="flex items-center justify-end gap-2">
@@ -4529,39 +5120,307 @@ export default function App() {
               </motion.div>
             )}
 
-            {/* Map View Tab */}
+            {/* Map View Tab (แผนที่ระบบจำแนกสีผู้ป่วย & ขอบเขตตำบลไผ่ต่ำ) */}
             {currentTab === 'map' && (
               <motion.div 
                 key="map"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="w-full h-full relative"
+                className="w-full h-full flex flex-col relative bg-slate-900 overflow-hidden"
               >
-                <div className="absolute inset-0 z-0">
-                  <iframe 
-                    src="https://www.google.com/maps/d/embed?mid=1EJn-6UCajvEy2clWRRGHMw7ZG0xWhQE" 
-                    className="w-full h-full border-0"
-                    allowFullScreen
-                    title="ระบบจำแนกสีตำบลไผ่ต่ำ"
-                  />
-                </div>
-                <div className="absolute top-6 left-6 bg-white/95 backdrop-blur-md p-4 rounded-xl border border-slate-200 w-64 shadow-lg">
-                  <h4 className="text-xs font-bold text-slate-800 mb-2">สัญลักษณ์จำแนกผู้ป่วย</h4>
-                  <div className="space-y-2 text-[11px] text-slate-600">
-                    <div className="flex items-center space-x-2">
-                      <span className="w-2.5 h-2.5 rounded-full bg-rose-500 block" />
-                      <span className="font-medium">สีแดง - กลุ่มติดเตียง (ช่วยเหลือตัวเองไม่ได้)</span>
+                {/* Header Switcher Bar */}
+                <div className="bg-slate-800/95 border-b border-slate-700/80 px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 z-30 shadow-md backdrop-blur-md">
+                  <div className="flex items-center space-x-3">
+                    <div className="p-2 bg-gradient-to-br from-blue-500 to-indigo-600 text-white rounded-xl shadow-sm">
+                      <Compass className="w-5 h-5" />
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <span className="w-2.5 h-2.5 rounded-full bg-amber-500 block" />
-                      <span className="font-medium">สีเหลือง - กลุ่มติดบ้าน (ช่วยเหลือตัวเองได้บ้าง)</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 block" />
-                      <span className="font-medium">สีเขียว - กลุ่มติดสังคม (มีส่วนร่วมกิจกรรมชุมชน)</span>
+                    <div>
+                      <h3 className="text-xs font-black text-white tracking-wide uppercase flex items-center gap-1.5">
+                        <span>ระบบแผนที่และข้อมูลสารสนเทศ ตำบลไผ่ต่ำ อ.หนองแค</span>
+                        <span className="bg-blue-500/20 text-blue-400 border border-blue-500/30 text-[9px] px-2 py-0.5 rounded-full font-mono">
+                          2 แผนที่
+                        </span>
+                      </h3>
+                      <p className="text-[10px] text-slate-400">
+                        จำแนกสีผู้ป่วยภาวะพึ่งพิง และแผนที่แสดงขอบเขตพื้นที่ตำบลไผ่ต่ำ อำเภอหนองแค จังหวัดสระบุรี
+                      </p>
                     </div>
                   </div>
+
+                  {/* Mode Selector Tabs */}
+                  <div className="flex items-center bg-slate-900/90 p-1 rounded-xl border border-slate-700/60 shadow-inner">
+                    <button
+                      type="button"
+                      onClick={() => setMapDisplayMode('split')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer ${
+                        mapDisplayMode === 'split'
+                          ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md'
+                          : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                      }`}
+                    >
+                      <Columns className="w-3.5 h-3.5" />
+                      <span>เปรียบเทียบ 2 แผนที่</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setMapDisplayMode('map1')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer ${
+                        mapDisplayMode === 'map1'
+                          ? 'bg-blue-600 text-white shadow-md'
+                          : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                      }`}
+                    >
+                      <MapIcon className="w-3.5 h-3.5" />
+                      <span>แผนที่ 1 (Google My Maps หมุดสีผู้ป่วย)</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setMapDisplayMode('map2')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer ${
+                        mapDisplayMode === 'map2'
+                          ? 'bg-emerald-600 text-white shadow-md'
+                          : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                      }`}
+                    >
+                      <MapPin className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>แผนที่ 2 (ขอบเขตตำบลไผ่ต่ำ อ.หนองแค)</span>
+                    </button>
+                  </div>
+
+                  {/* External Map Link */}
+                  <a
+                    href="https://www.google.com/maps/d/viewer?mid=1EJn-6UCajvEy2clWRRGHMw7ZG0xWhQE"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hidden sm:flex px-3 py-1.5 rounded-xl bg-blue-600/90 hover:bg-blue-600 text-white font-bold text-xs items-center gap-1.5 shadow-md transition-all cursor-pointer"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    <span>เปิด My Maps เต็มจอ</span>
+                  </a>
+                </div>
+
+                {/* Main Maps Container */}
+                <div className="flex-1 w-full h-full relative flex flex-col md:flex-row overflow-hidden">
+                  
+                  {/* MAP 1: Google My Maps (Left Panel in Split View) */}
+                  {(mapDisplayMode === 'split' || mapDisplayMode === 'map1') && (
+                    <div className={`relative h-full transition-all duration-300 ${
+                      mapDisplayMode === 'split' ? 'w-full md:w-1/2 border-r border-slate-700/80' : 'w-full'
+                    }`}>
+                      <div className="absolute top-3 left-3 z-10 bg-slate-900/90 backdrop-blur-md px-3 py-1.5 rounded-xl border border-slate-700 text-[11px] text-white font-bold flex items-center space-x-2 shadow-lg">
+                        <MapIcon className="w-3.5 h-3.5 text-blue-400" />
+                        <span>แผนที่ที่ 1: Google My Maps (หมุดสีผู้ป่วยภาวะพึ่งพิง)</span>
+                      </div>
+
+                      <div className="w-full h-full">
+                        <iframe 
+                          src="https://www.google.com/maps/d/embed?mid=1EJn-6UCajvEy2clWRRGHMw7ZG0xWhQE" 
+                          className="w-full h-full border-0"
+                          allowFullScreen
+                          title="ระบบจำแนกสีตำบลไผ่ต่ำ"
+                        />
+                      </div>
+
+                      {/* Map 1 Legend Overlay */}
+                      <div className="absolute bottom-4 left-4 z-10 bg-white/95 backdrop-blur-md p-3.5 rounded-2xl border border-slate-200/90 w-64 shadow-2xl text-slate-800">
+                        <h4 className="text-xs font-bold text-slate-800 mb-2 flex items-center justify-between">
+                          <span className="flex items-center gap-1.5">
+                            <MapPin className="w-4 h-4 text-blue-600" />
+                            <span>สัญลักษณ์จำแนกผู้ป่วย</span>
+                          </span>
+                          <span className="text-[9px] bg-slate-100 px-2 py-0.5 rounded-md text-slate-500 font-mono">
+                            ตำบลไผ่ต่ำ
+                          </span>
+                        </h4>
+                        <div className="space-y-2 text-[11px] text-slate-600">
+                          <div className="flex items-center space-x-2.5 bg-rose-50 p-1.5 rounded-xl border border-rose-100">
+                            <span className="w-3 h-3 rounded-full bg-rose-500 block shrink-0 shadow-xs" />
+                            <span className="font-bold text-rose-800">กลุ่มติดเตียง (ช่วยเหลือตัวเองไม่ได้)</span>
+                          </div>
+                          <div className="flex items-center space-x-2.5 bg-amber-50 p-1.5 rounded-xl border border-amber-100">
+                            <span className="w-3 h-3 rounded-full bg-amber-500 block shrink-0 shadow-xs" />
+                            <span className="font-bold text-amber-800">กลุ่มติดบ้าน (ช่วยเหลือตัวเองได้บ้าง)</span>
+                          </div>
+                          <div className="flex items-center space-x-2.5 bg-emerald-50 p-1.5 rounded-xl border border-emerald-100">
+                            <span className="w-3 h-3 rounded-full bg-emerald-500 block shrink-0 shadow-xs" />
+                            <span className="font-bold text-emerald-800">กลุ่มติดสังคม (ทำกิจกรรมชุมชนได้)</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* MAP 2: Boundary Map of Tambon Phai Tam, Nong Khae District, Saraburi */}
+                  {(mapDisplayMode === 'split' || mapDisplayMode === 'map2') && (
+                    <div className={`relative h-full flex flex-col bg-slate-950 transition-all duration-300 ${
+                      mapDisplayMode === 'split' ? 'w-full md:w-1/2' : 'w-full'
+                    }`}>
+                      
+                      {/* MAP 2 CONTROL BAR: Controls, Search, and Map Layer Types */}
+                      <div className="bg-slate-900/95 border-b border-slate-800 p-2.5 z-20 space-y-2 text-xs">
+                        
+                        {/* Row 1: Map Layer Types (Roadmap, Satellite, Terrain, Hybrid) */}
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex items-center space-x-1 bg-slate-950 p-1 rounded-xl border border-slate-800">
+                            <span className="text-[10px] font-bold text-slate-400 px-1.5 font-mono uppercase">มุมมอง:</span>
+                            {[
+                              { id: 'm', label: '🗺️ ถนนหลัก', desc: 'Roadmap' },
+                              { id: 'k', label: '🛰️ ภาพดาวเทียม', desc: 'Satellite' },
+                              { id: 'p', label: '⛰️ ภูมิประเทศ', desc: 'Terrain' },
+                              { id: 'h', label: '🌐 ผสม', desc: 'Hybrid' },
+                            ].map((t) => (
+                              <button
+                                key={t.id}
+                                type="button"
+                                onClick={() => setMap2Type(t.id as any)}
+                                className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
+                                  map2Type === t.id
+                                    ? 'bg-emerald-600 text-white shadow-sm'
+                                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                                }`}
+                              >
+                                {t.label}
+                              </button>
+                            ))}
+                          </div>
+
+                          {/* Quick Jump Shortcuts for Phai Tam */}
+                          <div className="flex items-center space-x-1">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setMap2Query('Tambon Phai Tam, Nong Khae District, Saraburi, Thailand');
+                                setMap2Zoom(14);
+                                setMap2LocationLabel('ขอบเขตตำบลไผ่ต่ำ (อ.หนองแค จ.สระบุรี)');
+                              }}
+                              className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border border-emerald-700/60 cursor-pointer flex items-center space-x-1 shadow-xs"
+                            >
+                              <MapPin className="w-3 h-3 text-emerald-400" />
+                              <span>ขอบเขตตำบลไผ่ต่ำ</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setMap2Query('โรงพยาบาลส่งเสริมสุขภาพตำบลไผ่ต่ำ หนองแค สระบุรี');
+                                setMap2Zoom(16);
+                                setMap2LocationLabel('รพ.สต. ไผ่ต่ำ (ศูนย์สั่งการ)');
+                              }}
+                              className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 cursor-pointer flex items-center space-x-1"
+                            >
+                              <Building className="w-3 h-3 text-cyan-400" />
+                              <span>รพ.สต. ไผ่ต่ำ</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setMap2Query('องค์การบริหารส่วนตำบลไผ่ต่ำ หนองแค สระบุรี');
+                                setMap2Zoom(16);
+                                setMap2LocationLabel('อบต. ไผ่ต่ำ');
+                              }}
+                              className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700 cursor-pointer flex items-center space-x-1"
+                            >
+                              <Building className="w-3 h-3 text-amber-400" />
+                              <span>อบต. ไผ่ต่ำ</span>
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Row 2: Location Search Input Bar */}
+                        <form 
+                          onSubmit={(e) => {
+                            e.preventDefault();
+                            if (map2SearchInput.trim()) {
+                              setMap2Query(`${map2SearchInput.trim()}, Phai Tam, Nong Khae, Saraburi`);
+                              setMap2LocationLabel(`ค้นหาในตำบลไผ่ต่ำ: ${map2SearchInput.trim()}`);
+                            }
+                          }}
+                          className="flex items-center space-x-2 bg-slate-950 p-1.5 rounded-xl border border-slate-800"
+                        >
+                          <Search className="w-4 h-4 text-slate-400 ml-1 shrink-0" />
+                          <input
+                            type="text"
+                            placeholder="ค้นหาหมู่บ้านหรือสถานที่ในตำบลไผ่ต่ำ อ.หนองแค จ.สระบุรี..."
+                            value={map2SearchInput}
+                            onChange={(e) => setMap2SearchInput(e.target.value)}
+                            className="flex-1 bg-transparent text-xs text-white placeholder-slate-500 focus:outline-none"
+                          />
+                          <button
+                            type="submit"
+                            className="px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] cursor-pointer transition-colors"
+                          >
+                            ค้นหาพิกัด
+                          </button>
+                        </form>
+                      </div>
+
+                      {/* MAP 2 MAIN DISPLAY: Official High-Definition Google Maps Boundary View */}
+                      <div className="flex-1 relative w-full h-full bg-slate-900">
+                        <iframe
+                          src={`https://maps.google.com/maps?q=${encodeURIComponent(map2Query)}&t=${map2Type}&z=${map2Zoom}&ie=UTF8&iwloc=&output=embed`}
+                          className="w-full h-full border-0"
+                          allowFullScreen
+                          loading="lazy"
+                          title="แผนที่ขอบเขตตำบลไผ่ต่ำ อำเภอหนองแค จังหวัดสระบุรี"
+                        />
+
+                        {/* Floating Top Label Badge */}
+                        <div className="absolute top-3 left-3 z-10 bg-slate-900/90 backdrop-blur-md px-3 py-1.5 rounded-xl border border-slate-700 text-[11px] text-white font-bold flex items-center space-x-2 shadow-lg">
+                          <MapPin className="w-3.5 h-3.5 text-emerald-400 animate-bounce" />
+                          <span>แผนที่ที่ 2: {map2LocationLabel}</span>
+                        </div>
+
+                        {/* Direct Open in Google Maps App Button */}
+                        <a
+                          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(map2Query)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="absolute bottom-4 right-4 z-10 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-3.5 py-2 rounded-xl shadow-xl flex items-center space-x-2 border border-emerald-400/30 transition-all hover:scale-105"
+                        >
+                          <Navigation className="w-4 h-4" />
+                          <span>เปิดขอบเขตบน Google Maps แอปพลิเคชัน</span>
+                        </a>
+
+                        {/* Quick Village Navigator Box */}
+                        <div className="absolute bottom-4 left-4 z-10 bg-slate-900/90 backdrop-blur-md p-3 rounded-xl border border-slate-800 w-64 shadow-2xl text-slate-300">
+                          <h4 className="text-[11px] font-bold text-white mb-1.5 flex items-center justify-between">
+                            <span>ขอบเขตหมู่บ้าน ตำบลไผ่ต่ำ</span>
+                            <span className="text-[9px] font-mono text-emerald-400">8 หมู่บ้าน</span>
+                          </h4>
+                          <div className="space-y-1 text-[10px]">
+                            {[
+                              { label: 'หมู่ 1 บ้านไผ่ต่ำ (รพ.สต. ศูนย์กลาง)', query: 'Ban Phai Tam, Nong Khae, Saraburi' },
+                              { label: 'หมู่ 2 บ้านคลองระบายน้ำ', query: 'Moo 2 Phai Tam, Nong Khae, Saraburi' },
+                              { label: 'หมู่ 3 บ้านหนองหมู', query: 'Moo 3 Phai Tam, Nong Khae, Saraburi' },
+                              { label: 'หมู่ 4 บ้านโคกสะอาด', query: 'Moo 4 Phai Tam, Nong Khae, Saraburi' },
+                              { label: 'หมู่ 5 บ้านไผ่ล้อม (พื้นที่ลุ่มต่ำ)', query: 'Moo 5 Phai Tam, Nong Khae, Saraburi' },
+                              { label: 'หมู่ 6 บ้านบึง', query: 'Moo 6 Phai Tam, Nong Khae, Saraburi' },
+                              { label: 'หมู่ 7 บ้านคลอง 10', query: 'Moo 7 Phai Tam, Nong Khae, Saraburi' },
+                              { label: 'หมู่ 8 บ้านไผ่ต่ำดอน', query: 'Moo 8 Phai Tam, Nong Khae, Saraburi' },
+                            ].map((loc, idx) => (
+                              <button
+                                key={idx}
+                                type="button"
+                                onClick={() => {
+                                  setMap2Query(loc.query);
+                                  setMap2Zoom(15);
+                                  setMap2LocationLabel(loc.label);
+                                }}
+                                className="w-full text-left px-2 py-1 rounded hover:bg-slate-800 text-slate-300 hover:text-emerald-300 transition-colors flex items-center justify-between group cursor-pointer"
+                              >
+                                <span className="truncate">{loc.label}</span>
+                                <span className="text-[9px] text-slate-500 group-hover:text-emerald-400">ขยาย ➔</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                      </div>
+                    </div>
+                  )}
+
                 </div>
               </motion.div>
             )}
@@ -5508,15 +6367,6 @@ export default function App() {
                           </button>
 
                           <button
-                            onClick={handleOpenGoogleDrive}
-                            className="px-3.5 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-800 text-xs font-bold rounded-lg shadow-sm transition-all cursor-pointer flex items-center gap-2"
-                            title="เปิด Google Sheets / Google Drive ในแท็บใหม่"
-                          >
-                            <ExternalLink className="w-3.5 h-3.5 text-blue-600" />
-                            <span>เปิด Google Drive / Sheets</span>
-                          </button>
-
-                          <button
                             onClick={handleSaveSheetPatients}
                             disabled={syncing || sheetPatients.length === 0 || userRole === 'public'}
                             className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-lg shadow-sm transition-all cursor-pointer flex items-center gap-2 disabled:bg-slate-300 disabled:cursor-not-allowed"
@@ -6044,6 +6894,18 @@ export default function App() {
                     </div>
 
                     <div>
+                      <label className="block text-[10px] uppercase tracking-wider font-bold text-slate-400 mb-1.5">เลขบัตรประจำตัวประชาชน (13 หลัก)</label>
+                      <input 
+                        type="text"
+                        maxLength={17}
+                        value={editPatientCid}
+                        onChange={(e) => setEditPatientCid(e.target.value)}
+                        placeholder="เช่น 3-1002-00123-45-6"
+                        className="w-full border border-slate-200 rounded-lg p-2.5 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-xs text-slate-800 bg-white font-mono"
+                      />
+                    </div>
+
+                    <div>
                       <label className="block text-[10px] uppercase tracking-wider font-bold text-slate-400 mb-2">กลุ่มประชากรจำแนกสี</label>
                       <div className="grid grid-cols-3 gap-3">
                         {(['ติดเตียง', 'ติดบ้าน', 'ติดสังคม'] as const).map((cat) => (
@@ -6205,6 +7067,18 @@ export default function App() {
                 </div>
 
                 <div className="space-y-1">
+                  <label className="font-bold text-slate-600">เลขบัตรประจำตัวประชาชน (13 หลัก)</label>
+                  <input
+                    type="text"
+                    maxLength={17}
+                    value={editVhvCid}
+                    onChange={(e) => setEditVhvCid(e.target.value)}
+                    placeholder="เช่น 3-1002-00123-45-6"
+                    className="w-full bg-slate-50 border border-slate-200 px-3 py-2 rounded-lg font-mono"
+                  />
+                </div>
+
+                <div className="space-y-1">
                   <label className="font-bold text-slate-600">เบอร์โทรศัพท์</label>
                   <input
                     type="text"
@@ -6307,6 +7181,18 @@ export default function App() {
                     value={editCgName}
                     onChange={(e) => setEditCgName(e.target.value)}
                     className="w-full bg-slate-50 border border-slate-200 px-3 py-2 rounded-lg"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-600">เลขบัตรประจำตัวประชาชน (13 หลัก)</label>
+                  <input
+                    type="text"
+                    maxLength={17}
+                    value={editCgCid}
+                    onChange={(e) => setEditCgCid(e.target.value)}
+                    placeholder="เช่น 3-1002-00678-90-6"
+                    className="w-full bg-slate-50 border border-slate-200 px-3 py-2 rounded-lg font-mono"
                   />
                 </div>
 
@@ -6416,6 +7302,18 @@ export default function App() {
                 </div>
 
                 <div className="space-y-1">
+                  <label className="font-bold text-slate-600">เลขบัตรประจำตัวประชาชน / เลขทะเบียน (13 หลัก)</label>
+                  <input
+                    type="text"
+                    maxLength={17}
+                    value={editBenCid}
+                    onChange={(e) => setEditBenCid(e.target.value)}
+                    placeholder="เช่น 3-1002-00555-88-9"
+                    className="w-full bg-slate-50 border border-slate-200 px-3 py-2 rounded-lg font-mono"
+                  />
+                </div>
+
+                <div className="space-y-1">
                   <label className="font-bold text-slate-600">เบอร์โทรศัพท์ติดต่อ</label>
                   <input
                     type="text"
@@ -6479,478 +7377,22 @@ export default function App() {
         )}
 
         {/* Detailed Info Overlay Card */}
-        {selectedDetailItem && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 select-none">
-            {/* Backdrop */}
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 0.6 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setSelectedDetailItem(null)}
-              className="absolute inset-0 bg-slate-900/80 backdrop-blur-sm"
-            />
-
-            {/* Panel */}
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden border border-slate-150 flex flex-col z-10"
-            >
-              {/* Header */}
-              <div className={`p-5 text-white ${
-                selectedDetailItem.type === 'อสม' ? 'bg-gradient-to-r from-blue-600 to-indigo-600' :
-                selectedDetailItem.type === 'ผู้ป่วย' ? 'bg-gradient-to-r from-rose-600 to-pink-600' :
-                selectedDetailItem.type === 'ผู้ทำคุณประโยชน์' ? 'bg-gradient-to-r from-amber-600 to-orange-600' :
-                'bg-gradient-to-r from-emerald-600 to-teal-600'
-              }`}>
-                <div className="flex justify-between items-start">
-                  <div>
-                    <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-white/25 text-white block w-fit mb-1.5">
-                      {selectedDetailItem.type === 'อสม' ? 'ข้อมูล อสม. จิตอาสา' :
-                       selectedDetailItem.type === 'ผู้ป่วย' ? 'ข้อมูลคนไข้ในระบบ' :
-                       selectedDetailItem.type === 'ผู้ทำคุณประโยชน์' ? 'ข้อมูลผู้ทำคุณประโยชน์' :
-                       'ข้อมูลผู้ดูแล (Caregiver)'}
-                    </span>
-                    <h3 className="text-lg font-extrabold tracking-tight">{selectedDetailItem.name}</h3>
-                  </div>
-                  <button 
-                    onClick={() => setSelectedDetailItem(null)}
-                    className="p-1 hover:bg-white/20 rounded-full text-white transition-colors cursor-pointer"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Body */}
-              <div className="p-6 space-y-4 text-xs text-slate-700 max-h-[450px] overflow-y-auto custom-scrollbar">
-                
-                {selectedDetailItem.type === 'อสม' && (
-                  <div className="space-y-3.5">
-                    <div className="grid grid-cols-2 gap-3 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                      <div>
-                        <p className="text-[10px] text-slate-400 font-bold uppercase">สถานะตำแหน่ง</p>
-                        <p className="text-xs font-bold text-slate-800 mt-0.5">อสม. ปฏิบัติการในพื้นที่</p>
-                      </div>
-                      <div>
-                        <p className="text-[10px] text-slate-400 font-bold uppercase">หน่วยงานสังกัด</p>
-                        <p className="text-xs font-bold text-slate-800 mt-0.5">รพ.สต.ตำบลไผ่ต่ำ</p>
-                      </div>
-                    </div>
-
-                    <div>
-                      <p className="text-[10px] text-slate-400 font-bold uppercase mb-1">ที่อยู่อาศัยปัจจุบัน</p>
-                      <p className="text-xs font-semibold text-slate-700 bg-slate-50 p-2.5 rounded-lg border border-slate-100 leading-relaxed">
-                        12 หมู่ 2 ต.ไผ่ต่ำ อ.วิหารแดง จ.สระบุรี 18150
-                      </p>
-                    </div>
-
-                    <div>
-                      <p className="text-[10px] text-slate-400 font-bold uppercase mb-2 flex items-center justify-between">
-                        <span>ผู้ป่วยในความรับผิดชอบ ({
-                          patients.filter(p => p.caregiver === selectedDetailItem.name).length
-                        } ราย)</span>
-                        <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
-                      </p>
-                      <div className="space-y-2">
-                        {(() => {
-                          const list = patients.filter(p => p.caregiver === selectedDetailItem.name);
-                          if (list.length === 0) {
-                            return <p className="text-slate-400 italic text-center py-4 bg-slate-50 rounded-lg border border-slate-100">ไม่มีผู้ป่วยในตารางความรับผิดชอบขณะนี้</p>;
-                          }
-                          return list.map((p, idx) => (
-                            <div key={idx} className="p-2.5 rounded-lg bg-slate-50 border border-slate-100 flex justify-between items-center hover:bg-slate-100/50 transition-colors">
-                              <div>
-                                <p className="font-bold text-slate-800">{p.name}</p>
-                                <p className="text-[10px] text-slate-400 mt-0.5">{p.address}</p>
-                              </div>
-                              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
-                                p.category === 'ติดเตียง' ? 'bg-rose-50 text-rose-700 border border-rose-150' :
-                                p.category === 'ติดบ้าน' ? 'bg-amber-50 text-amber-700 border border-amber-150' :
-                                'bg-emerald-50 text-emerald-700 border border-emerald-150'
-                              }`}>{p.category}</span>
-                            </div>
-                          ));
-                        })()}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {selectedDetailItem.type === 'ผู้ป่วย' && (
-                  <div className="space-y-3.5">
-                    <div className="grid grid-cols-2 gap-3 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                      <div>
-                        <p className="text-[10px] text-slate-400 font-bold uppercase">รหัสผู้ป่วย HN</p>
-                        <p className="text-xs font-mono font-extrabold text-slate-800 mt-0.5">{selectedDetailItem.data.id || 'HN-NEW'}</p>
-                      </div>
-                      <div>
-                        <p className="text-[10px] text-slate-400 font-bold uppercase">กลุ่มสุขภาพ</p>
-                        <p className="text-xs font-bold text-slate-800 mt-0.5 flex items-center gap-1.5">
-                          <span className={`w-2 h-2 rounded-full ${
-                            selectedDetailItem.data.category === 'ติดเตียง' ? 'bg-rose-500' :
-                            selectedDetailItem.data.category === 'ติดบ้าน' ? 'bg-amber-500' :
-                            'bg-emerald-500'
-                          }`}></span>
-                          <span>{selectedDetailItem.data.category}</span>
-                        </p>
-                      </div>
-                    </div>
-
-                    <div>
-                      <p className="text-[10px] text-slate-400 font-bold uppercase mb-1">ที่อยู่ที่ติดต่อได้สะดวก</p>
-                      <p className="text-xs font-semibold text-slate-700 bg-slate-50 p-2.5 rounded-lg border border-slate-100 leading-relaxed">
-                        {selectedDetailItem.data.address}
-                      </p>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <p className="text-[10px] text-slate-400 font-bold uppercase mb-1">เบอร์ติดต่อด่วน</p>
-                        <p className="text-xs font-bold text-slate-800 bg-slate-50 p-2 rounded-lg border border-slate-100">
-                          {selectedDetailItem.data.phone || '081-xxx-xxxx'}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-[10px] text-slate-400 font-bold uppercase mb-1">สัญญาณชีพ/อาการสำคัญ</p>
-                        <p className="text-xs font-bold text-slate-800 bg-slate-50 p-2 rounded-lg border border-slate-100 truncate">
-                          {selectedDetailItem.data.vitalSigns || 'ปกติ'}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl">
-                      <p className="text-[10px] text-slate-400 font-bold uppercase mb-1.5">ผู้ดูแล และ อสม. ผู้รับผิดชอบ</p>
-                      <div className="flex items-center space-x-2.5">
-                        <div className="w-8 h-8 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shrink-0 font-bold">
-                          {selectedDetailItem.data.caregiver ? selectedDetailItem.data.caregiver.charAt(0) : 'อ'}
-                        </div>
-                        <div>
-                          <p className="font-bold text-slate-800">{selectedDetailItem.data.caregiver || 'ไม่มีข้อมูลผู้ดูแล'}</p>
-                          <p className="text-[10px] text-slate-500">เจ้าหน้าที่สาธารณสุข / อสม. ประจำตำบล</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {selectedDetailItem.type === 'ผู้ดูแล' && (
-                  <div className="space-y-3.5">
-                    <div className="grid grid-cols-2 gap-3 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                      <div>
-                        <p className="text-[10px] text-slate-400 font-bold uppercase">บทบาทหน้าที่หลัก</p>
-                        <p className="text-xs font-bold text-slate-800 mt-0.5">ผู้ดูแลหลักประจำตัวญาติ</p>
-                      </div>
-                      <div>
-                        <p className="text-[10px] text-slate-400 font-bold uppercase">ความสัมพันธ์ผู้ป่วย</p>
-                        <p className="text-xs font-bold text-slate-800 mt-0.5">ญาติสนิท / ผู้ดูแลหลัก</p>
-                      </div>
-                    </div>
-
-                    <div>
-                      <p className="text-[10px] text-slate-400 font-bold uppercase mb-1">ที่อยู่ที่พำนักในชุมชน</p>
-                      <p className="text-xs font-semibold text-slate-700 bg-slate-50 p-2.5 rounded-lg border border-slate-100 leading-relaxed">
-                        {selectedDetailItem.data?.address || 'ต.ไผ่ต่ำ อ.วิหารแดง จ.สระบุรี'}
-                      </p>
-                    </div>
-
-                    <div>
-                      <p className="text-[10px] text-slate-400 font-bold uppercase mb-1">เบอร์ติดต่อประสานงาน</p>
-                      <p className="text-xs font-extrabold text-slate-800 bg-slate-50 p-2.5 rounded-lg border border-slate-100">
-                        {selectedDetailItem.data?.phone || '081-xxx-xxxx'}
-                      </p>
-                    </div>
-
-                    <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl">
-                      <p className="text-[10px] text-slate-400 font-bold uppercase mb-1.5">ผู้ป่วยในความดูแลหลัก</p>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-2.5">
-                          <div className="w-8 h-8 rounded-full bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-600 shrink-0 font-bold">
-                            {selectedDetailItem.data?.name ? selectedDetailItem.data.name.charAt(0) : 'ค'}
-                          </div>
-                          <div>
-                            <p className="font-bold text-slate-800">{selectedDetailItem.data?.name || 'ไม่มีข้อมูลคนไข้'}</p>
-                            <p className="text-[10px] text-slate-500">คนไข้ในทะเบียนตำบลไผ่ต่ำ</p>
-                          </div>
-                        </div>
-                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
-                          selectedDetailItem.data?.category === 'ติดเตียง' ? 'bg-rose-50 text-rose-700 border border-rose-150' :
-                          selectedDetailItem.data?.category === 'ติดบ้าน' ? 'bg-amber-50 text-amber-700 border border-amber-150' :
-                          'bg-emerald-50 text-emerald-700 border border-emerald-150'
-                        }`}>{selectedDetailItem.data?.category || 'ไม่ระบุ'}</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {selectedDetailItem.type === 'ผู้ทำคุณประโยชน์' && (
-                  <div className="space-y-3.5">
-                    <div className="grid grid-cols-2 gap-3 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                      <div>
-                        <p className="text-[10px] text-slate-400 font-bold uppercase">รหัสสมาชิก</p>
-                        <p className="text-xs font-mono font-bold text-slate-800 mt-0.5">{selectedDetailItem.data?.id || 'BEN-000'}</p>
-                      </div>
-                      <div>
-                        <p className="text-[10px] text-slate-400 font-bold uppercase">ประจำหมู่บ้าน</p>
-                        <p className="text-xs font-bold text-amber-700 mt-0.5">{selectedDetailItem.data?.moo || 'หมู่ 1'}</p>
-                      </div>
-                    </div>
-
-                    <div>
-                      <p className="text-[10px] text-slate-400 font-bold uppercase mb-1">สิ่งสนับสนุน / คุณประโยชน์ต่อชุมชน</p>
-                      <p className="text-xs font-semibold text-amber-900 bg-amber-50 p-3 rounded-xl border border-amber-200 leading-relaxed">
-                        {selectedDetailItem.data?.contribution || 'ผู้สนับสนุนชุมชนตำบลไผ่ต่ำ'}
-                      </p>
-                    </div>
-
-                    <div>
-                      <p className="text-[10px] text-slate-400 font-bold uppercase mb-1">เบอร์โทรศัพท์ติดต่อ</p>
-                      <p className="text-xs font-extrabold font-mono text-slate-800 bg-slate-50 p-2.5 rounded-lg border border-slate-100">
-                        {selectedDetailItem.data?.phone || '08x-xxx-xxxx'}
-                      </p>
-                    </div>
-
-                    <div>
-                      <p className="text-[10px] text-slate-400 font-bold uppercase mb-1">ที่อยู่อาศัย / ที่ตั้งองค์กร</p>
-                      <p className="text-xs font-semibold text-slate-700 bg-slate-50 p-2.5 rounded-lg border border-slate-100 leading-relaxed">
-                        {selectedDetailItem.data?.address || 'ต.ไผ่ต่ำ อ.วิหารแดง จ.สระบุรี'}
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-              </div>
-
-              {/* Footer */}
-              <div className="bg-slate-50 border-t border-slate-100 p-4 flex justify-end shrink-0">
-                <button 
-                  onClick={() => setSelectedDetailItem(null)}
-                  className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold rounded-lg transition-colors cursor-pointer"
-                >
-                  ปิดหน้าต่าง
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
+        <DetailViewModal
+          selectedDetailItem={selectedDetailItem}
+          onClose={() => setSelectedDetailItem(null)}
+          patients={patients}
+        />
       </AnimatePresence>
 
       {/* User Profile Info & Avatar Upload Modal */}
-      <AnimatePresence>
-        {isUserProfileModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl overflow-hidden border border-slate-200 my-auto flex flex-col max-h-[90vh]"
-            >
-              {/* Modal Header */}
-              <div className="p-4 sm:p-5 bg-gradient-to-r from-blue-700 via-blue-800 to-indigo-900 text-white flex items-center justify-between shrink-0">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20">
-                    <UserIcon className="w-5 h-5 text-blue-200" />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-base sm:text-lg leading-snug">ข้อมูลส่วนตัวผู้ใช้งาน</h3>
-                    <p className="text-[11px] text-blue-200/90 font-medium">จัดการโปรไฟล์ รูปถ่าย และข้อมูลติดต่อประจำระบบ</p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setIsUserProfileModalOpen(false)}
-                  className="p-1.5 hover:bg-white/10 rounded-xl text-white/80 hover:text-white transition-colors cursor-pointer"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              {/* Modal Body */}
-              <div className="p-4 sm:p-6 overflow-y-auto custom-scrollbar space-y-5 flex-1 bg-slate-50/50">
-                
-                {/* Avatar Section & File Upload */}
-                <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs flex flex-col sm:flex-row items-center gap-4">
-                  <div className="relative group shrink-0">
-                    <div className="w-24 h-24 rounded-full border-4 border-blue-100 shadow-md overflow-hidden bg-slate-100 flex items-center justify-center relative">
-                      <img
-                        src={customProfile.photoURL || user?.photoURL || 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=256&q=80'}
-                        alt="Profile Avatar"
-                        className="w-full h-full object-cover"
-                        referrerPolicy="no-referrer"
-                      />
-                    </div>
-                    {/* Hidden File Input */}
-                    <input
-                      type="file"
-                      ref={fileInputRef}
-                      onChange={handleProfileImageUpload}
-                      accept="image/*"
-                      className="hidden"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="absolute bottom-0 right-0 p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-md border-2 border-white transition-transform active:scale-90 cursor-pointer"
-                      title="อัปโหลดภาพโปรไฟล์ใหม่"
-                    >
-                      <Camera className="w-4 h-4" />
-                    </button>
-                  </div>
-
-                  <div className="flex-1 text-center sm:text-left space-y-2">
-                    <div>
-                      <h4 className="font-extrabold text-slate-800 text-base">{customProfile.displayName}</h4>
-                      <p className="text-xs text-slate-500 font-mono">{customProfile.email}</p>
-                    </div>
-                    <div className="flex flex-wrap items-center justify-center sm:justify-start gap-1.5 pt-1">
-                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
-                        {customProfile.roleName}
-                      </span>
-                      <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-50 text-amber-800 border border-amber-200">
-                        ID: {customProfile.badgeId}
-                      </span>
-                    </div>
-
-                    <div className="pt-2">
-                      <button
-                        type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                        className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold rounded-lg border border-blue-200 transition-colors cursor-pointer inline-flex items-center gap-1.5"
-                      >
-                        <Upload className="w-3.5 h-3.5" />
-                        <span>อัปโหลดเปลี่ยนรูปโปรไฟล์</span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Edit Form */}
-                <form onSubmit={handleSaveProfile} className="space-y-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs">
-                  <h4 className="font-bold text-xs uppercase tracking-wider text-slate-400 border-b border-slate-100 pb-2 flex items-center gap-1.5">
-                    <Edit3 className="w-3.5 h-3.5 text-blue-600" />
-                    <span>แก้ไขรายละเอียดข้อมูลส่วนตัว</span>
-                  </h4>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                    <div>
-                      <label className="block text-[10px] uppercase font-bold text-slate-500 mb-1">ชื่อ-นามสกุล ผู้เข้าใช้</label>
-                      <input
-                        type="text"
-                        required
-                        value={customProfile.displayName}
-                        onChange={(e) => setCustomProfile(p => ({ ...p, displayName: e.target.value }))}
-                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:bg-white focus:ring-1 focus:ring-blue-500 focus:outline-none"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] uppercase font-bold text-slate-500 mb-1">อีเมลติดต่อ (Email)</label>
-                      <input
-                        type="email"
-                        required
-                        value={customProfile.email}
-                        onChange={(e) => setCustomProfile(p => ({ ...p, email: e.target.value }))}
-                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:bg-white focus:ring-1 focus:ring-blue-500 focus:outline-none"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] uppercase font-bold text-slate-500 mb-1">เบอร์โทรศัพท์ติดต่อด่วน</label>
-                      <input
-                        type="tel"
-                        value={customProfile.phone}
-                        onChange={(e) => setCustomProfile(p => ({ ...p, phone: e.target.value }))}
-                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:bg-white focus:ring-1 focus:ring-blue-500 focus:outline-none"
-                        placeholder="เช่น 081-987-6543"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] uppercase font-bold text-slate-500 mb-1">รหัสประจำตัว / สมาชิก</label>
-                      <input
-                        type="text"
-                        value={customProfile.badgeId}
-                        onChange={(e) => setCustomProfile(p => ({ ...p, badgeId: e.target.value }))}
-                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-semibold text-slate-800 focus:bg-white focus:ring-1 focus:ring-blue-500 focus:outline-none"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] uppercase font-bold text-slate-500 mb-1">ตำแหน่ง / สิทธิ์การใช้งาน</label>
-                      <input
-                        type="text"
-                        value={customProfile.roleName}
-                        onChange={(e) => setCustomProfile(p => ({ ...p, roleName: e.target.value }))}
-                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:bg-white focus:ring-1 focus:ring-blue-500 focus:outline-none"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] uppercase font-bold text-slate-500 mb-1">หมู่บ้าน / พื้นที่รับผิดชอบ</label>
-                      <input
-                        type="text"
-                        value={customProfile.moo}
-                        onChange={(e) => setCustomProfile(p => ({ ...p, moo: e.target.value }))}
-                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:bg-white focus:ring-1 focus:ring-blue-500 focus:outline-none"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] uppercase font-bold text-slate-500 mb-1">สังกัด / หน่วยงานปฏิบัติงาน</label>
-                    <input
-                      type="text"
-                      value={customProfile.workplace}
-                      onChange={(e) => setCustomProfile(p => ({ ...p, workplace: e.target.value }))}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:bg-white focus:ring-1 focus:ring-blue-500 focus:outline-none"
-                    />
-                  </div>
-
-                  <div className="pt-2 flex items-center justify-end gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setIsUserProfileModalOpen(false)}
-                      className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-colors cursor-pointer"
-                    >
-                      ยกเลิก
-                    </button>
-                    <button
-                      type="submit"
-                      className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-sm transition-all active:scale-95 cursor-pointer flex items-center gap-1.5"
-                    >
-                      <Check className="w-4 h-4" />
-                      <span>บันทึกข้อมูลส่วนตัว</span>
-                    </button>
-                  </div>
-                </form>
-
-                {/* System Session Status Card */}
-                <div className="bg-blue-50/60 p-3.5 rounded-xl border border-blue-150 text-xs space-y-2">
-                  <div className="flex items-center justify-between text-blue-900 font-bold">
-                    <span className="flex items-center gap-1.5">
-                      <Shield className="w-4 h-4 text-blue-600" />
-                      <span>สถานะการเชื่อมต่อระบบล่าสุด</span>
-                    </span>
-                    <span className="text-[10px] font-mono px-2 py-0.5 bg-blue-100 text-blue-800 rounded font-bold">ONLINE</span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 text-[11px] text-blue-800">
-                    <div>
-                      <span className="text-blue-500 block text-[10px]">สิทธิ์ในระบบ:</span>
-                      <span className="font-bold">{userRole === 'staff' ? 'เจ้าหน้าที่ (Admin)' : 'อสม. (VHV)'}</span>
-                    </div>
-                    <div>
-                      <span className="text-blue-500 block text-[10px]">พื้นที่ปฏิบัติงาน:</span>
-                      <span className="font-medium">ต.ไผ่ต่ำ อ.วิหารแดง</span>
-                    </div>
-                  </div>
-                </div>
-
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      <UserProfileModal
+        isOpen={isUserProfileModalOpen}
+        onClose={() => setIsUserProfileModalOpen(false)}
+        customProfile={customProfile}
+        setCustomProfile={setCustomProfile}
+        onSaveProfile={handleSaveProfile}
+        userRole={userRole}
+      />
 
       {/* Green Floating Button & Modal for Coin Exchange System - Shown only on Benefactors Page */}
       {currentTab === 'dashboard' && selectedMindMapSection === 'benefactor' && (
