@@ -2815,7 +2815,7 @@ export default function App() {
             <HealthLogo className="w-16 h-16" />
           </div>
           
-          <h1 className="text-xl font-sans font-black text-slate-900 text-center tracking-tight mb-0.5">
+          <h1 className="text-[27px] font-sans font-black text-slate-900 text-center tracking-tight mb-0.5">
             ระบบสุขภาพตำบลไผ่ต่ำ
           </h1>
           <p className="text-[10px] text-slate-400 uppercase tracking-widest font-sans text-center mb-6 font-bold">
@@ -2827,7 +2827,7 @@ export default function App() {
             <button
               type="button"
               onClick={() => setLoginTab('staff')}
-              className={`flex-1 py-2.5 text-xs font-extrabold rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer ${
+              className={`flex-1 py-2.5 text-[20px] font-extrabold rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer ${
                 loginTab === 'staff'
                   ? 'bg-blue-600 text-white shadow-md font-black'
                   : 'text-slate-600 hover:text-slate-900'
@@ -2839,7 +2839,7 @@ export default function App() {
             <button
               type="button"
               onClick={() => setLoginTab('vhv')}
-              className={`flex-1 py-2.5 text-xs font-extrabold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+              className={`flex-1 py-2.5 text-[20px] font-extrabold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                 loginTab === 'vhv'
                   ? 'bg-emerald-600 text-white shadow-md font-black'
                   : 'text-slate-600 hover:text-slate-900'
@@ -2854,17 +2854,17 @@ export default function App() {
             {loading ? (
               <div className="flex flex-col items-center justify-center space-y-3 py-8 text-center">
                 <RefreshCw className="w-7 h-7 text-blue-600 animate-spin" />
-                <p className="text-xs font-bold text-slate-500">กำลังเข้าสู่ระบบและเชื่อมต่อฐานข้อมูล...</p>
+                <p className="text-sm font-bold text-slate-500">กำลังเข้าสู่ระบบและเชื่อมต่อฐานข้อมูล...</p>
               </div>
             ) : loginTab === 'staff' ? (
               /* Staff Gmail Login Tab */
               <div className="space-y-4">
-                <div className="p-3.5 bg-blue-50/80 border border-blue-150 rounded-2xl text-xs text-blue-800 space-y-1">
+                <div className="p-3.5 bg-blue-50/80 border border-blue-150 rounded-2xl text-sm text-blue-800 space-y-1">
                   <p className="font-extrabold flex items-center gap-1.5 text-blue-900">
                     <Shield className="w-4 h-4 text-blue-600 shrink-0" />
                     <span>ระบบล็อกอินสำหรับเจ้าหน้าที่สาธารณสุข</span>
                   </p>
-                  <p className="text-[11px] text-blue-700 leading-relaxed">
+                  <p className="text-sm text-blue-700 leading-relaxed">
                     เฉพาะเจ้าหน้าที่ รพ.สต., แพทย์ และพยาบาล ต้องใช้ระบบยืนยันตัวตนด้วยบัญชี Gmail เท่านั้น
                   </p>
                 </div>
@@ -2872,7 +2872,7 @@ export default function App() {
                 {/* Google Sign-In Button */}
                 <button 
                   onClick={handleLogin}
-                  className="w-full flex items-center justify-center space-x-3 py-3 px-6 bg-white border border-slate-300 hover:border-slate-400 hover:bg-slate-50 transition-all rounded-xl shadow-sm text-xs font-bold text-slate-800 hover:shadow cursor-pointer active:scale-98"
+                  className="w-full flex items-center justify-center space-x-3 py-3 px-6 bg-white border border-slate-300 hover:border-slate-400 hover:bg-slate-50 transition-all rounded-xl shadow-sm text-[20px] font-bold text-slate-800 hover:shadow cursor-pointer active:scale-98"
                 >
                   <svg className="w-4 h-4 shrink-0" viewBox="0 0 48 48">
                     <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path>
@@ -2885,26 +2885,26 @@ export default function App() {
 
                 <div className="relative flex py-1 items-center">
                   <div className="flex-grow border-t border-slate-200"></div>
-                  <span className="flex-shrink mx-3 text-[10px] text-slate-400 uppercase font-bold tracking-wider">หรือระบุอีเมล Gmail เจ้าหน้าที่</span>
+                  <span className="flex-shrink mx-3 text-xs text-slate-400 uppercase font-bold tracking-wider">หรือระบุอีเมล Gmail เจ้าหน้าที่</span>
                   <div className="flex-grow border-t border-slate-200"></div>
                 </div>
 
                 {/* Direct Gmail Address Input Form */}
                 <form onSubmit={handleStaffGmailSubmit} className="space-y-3">
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">อีเมล Gmail เจ้าหน้าที่</label>
+                    <label className="block text-[20px] font-bold text-slate-700 mb-1">อีเมล Gmail เจ้าหน้าที่</label>
                     <input
                       type="email"
                       required
                       placeholder="เช่น somchai.health@gmail.com"
                       value={staffGmailInput}
                       onChange={(e) => setStaffGmailInput(e.target.value)}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-1 focus:ring-blue-500 focus:bg-white focus:outline-none font-mono"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[20px] focus:ring-1 focus:ring-blue-500 focus:bg-white focus:outline-none font-mono"
                     />
                   </div>
                   <button
                     type="submit"
-                    className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl transition-all cursor-pointer shadow-sm flex items-center justify-center gap-1.5"
+                    className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-[20px] rounded-xl transition-all cursor-pointer shadow-sm flex items-center justify-center gap-1.5"
                   >
                     <Mail className="w-4 h-4" />
                     <span>ยืนยันเข้าสู่ระบบด้วย Gmail</span>
@@ -2914,7 +2914,7 @@ export default function App() {
             ) : (
               /* Public & VHV Login Tab - Strictly Citizen ID 13 digits */
               <div className="space-y-4">
-                <div className="p-3.5 bg-emerald-50/80 border border-emerald-150 rounded-2xl text-xs text-emerald-800 space-y-1.5">
+                <div className="p-3.5 bg-emerald-50/80 border border-emerald-150 rounded-2xl text-sm text-emerald-800 space-y-1.5">
                   <p className="font-extrabold flex items-center gap-1.5 text-emerald-900">
                     <UserCheck className="w-4 h-4 text-emerald-600 shrink-0" />
                     <span>เข้าใช้งานสำหรับ บุคคลทั่วไป / อสม.</span>
