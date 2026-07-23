@@ -1925,6 +1925,59 @@ export default function App() {
     }, 1000);
   };
 
+  const handleFullGoogleSheetsSync = async () => {
+    let activeToken = token;
+    setSyncing(true);
+    addLog('Sheets Sync', 'เริ่มขั้นตอนเชื่อมต่อและซิงค์ข้อมูลกับ Google Sheets...', 'pending');
+
+    try {
+      if (!activeToken || activeToken === 'mock-staff-token') {
+        addLog('Auth', 'กำลังเปิดหน้าจอยืนยันสิทธิ์ Google Sign-In เพื่อขอสิทธิ์ Google Sheets...', 'pending');
+        const result = await googleSignIn();
+        if (result && result.accessToken) {
+          activeToken = result.accessToken;
+          setUser(result.user);
+          setToken(result.accessToken);
+          const resolvedRole = resolveAndSetUserRole(result.user.email);
+          setUserRole(resolvedRole);
+          localStorage.setItem('stitchsync_role', resolvedRole);
+          localStorage.setItem('stitchsync_user', JSON.stringify(result.user));
+          localStorage.setItem('stitchsync_token', result.accessToken);
+        } else {
+          throw new Error('ไม่สามารถเข้าสู่ระบบ Google เพื่อขอสิทธิ์การใช้ Google Sheets ได้');
+        }
+      }
+
+      const sheetsService = new SheetsService(activeToken);
+      const spreadId = await sheetsService.getOrCreateSpreadsheet();
+      addLog('Sheets DB', `เชื่อมต่อ Google Sheets สำเร็จ (ID: ${spreadId.substring(0, 15)}...)`, 'success');
+
+      const cloudPatients = await sheetsService.fetchPatients();
+      const cloudNames = new Set(cloudPatients.map(p => p.name));
+      const localOnlyPatients = patients.filter(p => !cloudNames.has(p.name));
+
+      let uploadedCount = 0;
+      if (localOnlyPatients.length > 0) {
+        addLog('Sheets Sync', `พบข้อมูลผู้ป่วยในเครื่องที่ยังไม่อยู่บน Google Sheets จำนวน ${localOnlyPatients.length} ราย กำลังส่งขึ้นคลาวด์...`, 'pending');
+        for (const p of localOnlyPatients) {
+          const ok = await sheetsService.addPatient(p);
+          if (ok) uploadedCount++;
+        }
+      }
+
+      await fetchData(activeToken);
+
+      addLog('Sheets Sync', `ซิงค์ข้อมูลกับ Google Sheets สำเร็จ! (ข้อมูลบนคลาวด์ ${cloudPatients.length + uploadedCount} ราย, อัปโหลดใหม่ ${uploadedCount} ราย)`, 'success');
+      alert(`✅ ซิงค์ข้อมูลเข้าระบบ Google Sheets สำเร็จเรียบร้อยแล้ว!\n\n• รหัสแผ่นงาน Google Sheets: ${spreadId.substring(0, 15)}...\n• จำนวนรายชื่อผู้ป่วยในแผ่นงาน: ${cloudPatients.length + uploadedCount} ราย${uploadedCount > 0 ? `\n• นำเข้าข้อมูลรายชื่อใหม่จากเครื่องขึ้น Google Sheets: ${uploadedCount} ราย` : '\n• ข้อมูลในเครื่องและ Google Sheets ตรงกันทุกเครื่องแล้ว'}`);
+    } catch (err: any) {
+      console.error('Google Sheets Sync Error:', err);
+      addLog('Sheets Sync', `เกิดข้อผิดพลาดในการซิงค์ Google Sheets: ${err.message}`, 'error');
+      alert(`⚠️ การซิงค์ Google Sheets ไม่สำเร็จ: ${err.message}\n\nหากยังไม่ได้เข้าสู่ระบบ Google กรุณาลงชื่อเข้าใช้ด้วย Google`);
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   const handleDownloadCSV = (listToExport: Patient[]) => {
     if (listToExport.length === 0) {
       alert('ไม่มีข้อมูลให้ส่งออก');
@@ -2625,6 +2678,7 @@ export default function App() {
     const [moved] = updated.splice(index, 1);
     updated.splice(targetIndex, 0, moved);
     setVhvs(updated);
+    localStorage.setItem('stitchsync_vhvs', JSON.stringify(updated));
     addLog('Local DB', `ปรับลำดับ อสม.: ${moved.name} (${direction === 'up' ? 'เลื่อนขึ้น' : 'เลื่อนลง'})`, 'success');
   };
 
@@ -2642,6 +2696,7 @@ export default function App() {
     const [moved] = updated.splice(index, 1);
     updated.splice(targetIndex, 0, moved);
     setCaregivers(updated);
+    localStorage.setItem('stitchsync_caregivers', JSON.stringify(updated));
     addLog('Local DB', `ปรับลำดับผู้ดูแลหลัก: ${moved.name} (${direction === 'up' ? 'เลื่อนขึ้น' : 'เลื่อนลง'})`, 'success');
   };
 
@@ -2659,6 +2714,7 @@ export default function App() {
     const [moved] = updated.splice(index, 1);
     updated.splice(targetIndex, 0, moved);
     setBenefactors(updated);
+    localStorage.setItem('stitchsync_benefactors', JSON.stringify(updated));
     addLog('Local DB', `ปรับลำดับผู้ทำคุณประโยชน์: ${moved.name} (${direction === 'up' ? 'เลื่อนขึ้น' : 'เลื่อนลง'})`, 'success');
   };
 
@@ -3504,15 +3560,26 @@ export default function App() {
               )}
             </div>
 
-            {/* Excel Download Action Button */}
+            {/* Google Sheets Sync & Connect Button */}
             <div className="flex items-center gap-1.5">
               <button
                 type="button"
+                onClick={handleFullGoogleSheetsSync}
+                disabled={syncing}
+                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all cursor-pointer active:scale-95 shrink-0 disabled:opacity-50"
+                title="คลิกเพื่อเชื่อมต่อและซิงค์ข้อมูลลง Google Sheets กลาง"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin text-amber-200' : 'text-emerald-200'}`} />
+                <span className="inline">เชื่อมต่อ / ซิงค์ Google Sheets</span>
+              </button>
+
+              <button
+                type="button"
                 onClick={handleExportAllExcel}
-                className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all cursor-pointer active:scale-95 shrink-0"
+                className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all cursor-pointer active:scale-95 shrink-0"
                 title="ดาวน์โหลดไฟล์ Excel (.xlsx) รวม 4 ฐานข้อมูล"
               >
-                <FileSpreadsheet className="w-3.5 h-3.5" />
+                <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
                 <span className="hidden lg:inline">ดาวน์โหลด Excel</span>
               </button>
             </div>
@@ -6314,12 +6381,22 @@ export default function App() {
 
                         <div className="flex flex-wrap items-center gap-2 shrink-0 md:self-end">
                           <button
+                            onClick={handleFullGoogleSheetsSync}
+                            disabled={syncing}
+                            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-sm transition-all cursor-pointer flex items-center gap-2 disabled:opacity-50"
+                            title="เชื่อมต่อและซิงค์ข้อมูลกับ Google Sheets กลางทันที"
+                          >
+                            <RefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin text-amber-200' : 'text-emerald-100'}`} />
+                            <span>🔄 เชื่อมต่อ / ซิงค์ Google Sheets กลาง</span>
+                          </button>
+
+                          <button
                             onClick={handleExportAllExcel}
-                            className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-sm transition-all cursor-pointer flex items-center gap-2"
+                            className="px-3.5 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold rounded-lg shadow-sm transition-all cursor-pointer flex items-center gap-2"
                             title="ดาวน์โหลดไฟล์ Excel (.xlsx) รวม 4 ฐานข้อมูลระบบ"
                           >
-                            <FileSpreadsheet className="w-3.5 h-3.5" />
-                            <span>ดาวน์โหลดไฟล์ Excel (.xlsx)</span>
+                            <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
+                            <span>ดาวน์โหลดไฟล์ Excel</span>
                           </button>
 
                           <button
@@ -6335,7 +6412,7 @@ export default function App() {
                             ) : (
                               <>
                                 <Database className="w-3.5 h-3.5 text-emerald-400" />
-                                <span>ซิงค์รายชื่อทั้งหมด ({sheetPatients.length} ราย)</span>
+                                <span>นำเข้าเพิ่ม ({sheetPatients.length} ราย)</span>
                               </>
                             )}
                           </button>
