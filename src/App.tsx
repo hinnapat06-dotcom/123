@@ -2594,8 +2594,8 @@ export default function App() {
 
   // Reorder / Move functions for Patients, VHVs, Caregivers, Benefactors
   const movePatientById = (id: string, direction: 'up' | 'down') => {
-    if (userRole === 'public') {
-      alert('⚠️ สิทธิ์การใช้งานจำกัด: เฉพาะเจ้าหน้าที่และ อสม. เท่านั้นที่ได้รับอนุญาตให้ปรับเปลี่ยนลำดับรายชื่อ');
+    if (userRole !== 'staff') {
+      alert('⚠️ สิทธิ์การใช้งานจำกัด: เฉพาะเจ้าหน้าที่สาธารณสุขเท่านั้นที่ได้รับอนุญาตให้ปรับเปลี่ยนลำดับรายชื่อ');
       return;
     }
     const index = patients.findIndex(p => p.id === id);
@@ -2612,8 +2612,8 @@ export default function App() {
   };
 
   const moveVhvById = (id: string, direction: 'up' | 'down') => {
-    if (userRole === 'public') {
-      alert('⚠️ สิทธิ์การใช้งานจำกัด: เฉพาะเจ้าหน้าที่และ อสม. เท่านั้นที่ได้รับอนุญาตให้ปรับเปลี่ยนลำดับรายชื่อ');
+    if (userRole !== 'staff') {
+      alert('⚠️ สิทธิ์การใช้งานจำกัด: เฉพาะเจ้าหน้าที่สาธารณสุขเท่านั้นที่ได้รับอนุญาตให้ปรับเปลี่ยนลำดับรายชื่อ');
       return;
     }
     const index = vhvs.findIndex(v => v.id === id);
@@ -2629,8 +2629,8 @@ export default function App() {
   };
 
   const moveCaregiverById = (id: string, direction: 'up' | 'down') => {
-    if (userRole === 'public') {
-      alert('⚠️ สิทธิ์การใช้งานจำกัด: เฉพาะเจ้าหน้าที่และ อสม. เท่านั้นที่ได้รับอนุญาตให้ปรับเปลี่ยนลำดับรายชื่อ');
+    if (userRole !== 'staff') {
+      alert('⚠️ สิทธิ์การใช้งานจำกัด: เฉพาะเจ้าหน้าที่สาธารณสุขเท่านั้นที่ได้รับอนุญาตให้ปรับเปลี่ยนลำดับรายชื่อ');
       return;
     }
     const index = caregivers.findIndex(c => c.id === id);
@@ -2646,8 +2646,8 @@ export default function App() {
   };
 
   const moveBenefactorById = (id: string, direction: 'up' | 'down') => {
-    if (userRole === 'public') {
-      alert('⚠️ สิทธิ์การใช้งานจำกัด: เฉพาะเจ้าหน้าที่และ อสม. เท่านั้นที่ได้รับอนุญาตให้ปรับเปลี่ยนลำดับรายชื่อ');
+    if (userRole !== 'staff') {
+      alert('⚠️ สิทธิ์การใช้งานจำกัด: เฉพาะเจ้าหน้าที่สาธารณสุขเท่านั้นที่ได้รับอนุญาตให้ปรับเปลี่ยนลำดับรายชื่อ');
       return;
     }
     const index = benefactors.findIndex(b => b.id === id);
@@ -2664,7 +2664,7 @@ export default function App() {
 
   // Drag-and-drop handler for direct row reordering
   const reorderVhvs = (draggedId: string, targetId: string) => {
-    if (draggedId === targetId || userRole === 'public') return;
+    if (draggedId === targetId || userRole !== 'staff') return;
     const fromIndex = vhvs.findIndex(v => v.id === draggedId);
     const toIndex = vhvs.findIndex(v => v.id === targetId);
     if (fromIndex === -1 || toIndex === -1) return;
@@ -2677,7 +2677,7 @@ export default function App() {
   };
 
   const reorderPatients = (draggedId: string, targetId: string) => {
-    if (draggedId === targetId || userRole === 'public') return;
+    if (draggedId === targetId || userRole !== 'staff') return;
     const fromIndex = patients.findIndex(p => p.id === draggedId);
     const toIndex = patients.findIndex(p => p.id === targetId);
     if (fromIndex === -1 || toIndex === -1) return;
@@ -2690,7 +2690,7 @@ export default function App() {
   };
 
   const reorderCaregivers = (draggedId: string, targetId: string) => {
-    if (draggedId === targetId || userRole === 'public') return;
+    if (draggedId === targetId || userRole !== 'staff') return;
     const fromIndex = caregivers.findIndex(c => c.id === draggedId);
     const toIndex = caregivers.findIndex(c => c.id === targetId);
     if (fromIndex === -1 || toIndex === -1) return;
@@ -2703,7 +2703,7 @@ export default function App() {
   };
 
   const reorderBenefactors = (draggedId: string, targetId: string) => {
-    if (draggedId === targetId || userRole === 'public') return;
+    if (draggedId === targetId || userRole !== 'staff') return;
     const fromIndex = benefactors.findIndex(b => b.id === draggedId);
     const toIndex = benefactors.findIndex(b => b.id === targetId);
     if (fromIndex === -1 || toIndex === -1) return;
@@ -3796,7 +3796,7 @@ export default function App() {
                                   <th className="p-4 font-bold">ประเภท</th>
                                   <th className="p-4 font-bold">เบอร์โทรศัพท์</th>
                                   <th className="p-4 font-bold">ที่อยู่อาศัยหลัก</th>
-                                  <th className="p-4 text-center font-bold">ปรับลำดับ</th>
+                                  {userRole === 'staff' && <th className="p-4 text-center font-bold">ปรับลำดับ</th>}
                                   <th className="p-4 pr-6 text-right font-bold">จัดการ</th>
                                 </tr>
                               </thead>
@@ -3804,7 +3804,7 @@ export default function App() {
                                 {filteredVhvs.map((item) => (
                                   <tr 
                                     key={item.id} 
-                                    draggable={userRole !== 'public'}
+                                    draggable={userRole === 'staff'}
                                     onDragStart={(e) => {
                                       e.dataTransfer.setData('text/plain', item.id);
                                       setDraggedVhvId(item.id);
@@ -3850,34 +3850,36 @@ export default function App() {
                                     </td>
                                     <td className="p-4 font-mono text-slate-600">{item.phone}</td>
                                     <td className="p-4 text-slate-500 max-w-xs truncate">{item.address}</td>
-                                    <td className="p-4 text-center">
-                                      <div className="flex items-center justify-center gap-1">
-                                        <div
-                                          className="p-1.5 rounded-lg bg-slate-100 hover:bg-blue-100 text-slate-500 hover:text-blue-700 cursor-grab active:cursor-grabbing transition-all shadow-2xs group"
-                                          title="คลิกค้างแล้วลากเพื่อย้ายลำดับ (Drag & Drop) ↕️"
-                                        >
-                                          <GripVertical className="w-3.5 h-3.5" />
+                                    {userRole === 'staff' && (
+                                      <td className="p-4 text-center">
+                                        <div className="flex items-center justify-center gap-1">
+                                          <div
+                                            className="p-1.5 rounded-lg bg-slate-100 hover:bg-blue-100 text-slate-500 hover:text-blue-700 cursor-grab active:cursor-grabbing transition-all shadow-2xs group"
+                                            title="คลิกค้างแล้วลากเพื่อย้ายลำดับ (Drag & Drop) ↕️"
+                                          >
+                                            <GripVertical className="w-3.5 h-3.5" />
+                                          </div>
+                                          <button
+                                            type="button"
+                                            onClick={() => moveVhvById(item.id, 'up')}
+                                            disabled={vhvs.findIndex(v => v.id === item.id) === 0}
+                                            className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 disabled:opacity-25 disabled:cursor-not-allowed transition-all cursor-pointer shadow-2xs"
+                                            title="เลื่อนลำดับขึ้น ⬆️"
+                                          >
+                                            <ArrowUp className="w-3.5 h-3.5" />
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => moveVhvById(item.id, 'down')}
+                                            disabled={vhvs.findIndex(v => v.id === item.id) === vhvs.length - 1}
+                                            className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 disabled:opacity-25 disabled:cursor-not-allowed transition-all cursor-pointer shadow-2xs"
+                                            title="เลื่อนลำดับลง ⬇️"
+                                          >
+                                            <ArrowDown className="w-3.5 h-3.5" />
+                                          </button>
                                         </div>
-                                        <button
-                                          type="button"
-                                          onClick={() => moveVhvById(item.id, 'up')}
-                                          disabled={vhvs.findIndex(v => v.id === item.id) === 0}
-                                          className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 disabled:opacity-25 disabled:cursor-not-allowed transition-all cursor-pointer shadow-2xs"
-                                          title="เลื่อนลำดับขึ้น ⬆️"
-                                        >
-                                          <ArrowUp className="w-3.5 h-3.5" />
-                                        </button>
-                                        <button
-                                          type="button"
-                                          onClick={() => moveVhvById(item.id, 'down')}
-                                          disabled={vhvs.findIndex(v => v.id === item.id) === vhvs.length - 1}
-                                          className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 disabled:opacity-25 disabled:cursor-not-allowed transition-all cursor-pointer shadow-2xs"
-                                          title="เลื่อนลำดับลง ⬇️"
-                                        >
-                                          <ArrowDown className="w-3.5 h-3.5" />
-                                        </button>
-                                      </div>
-                                    </td>
+                                      </td>
+                                    )}
                                     <td className="p-4 pr-6 text-right">
                                       <div className="flex items-center justify-end gap-2">
                                         <button
@@ -4202,51 +4204,53 @@ export default function App() {
                                       <p className="text-[11px] text-slate-500 pt-1 border-t border-slate-100">📍 {item.address}</p>
                                     </div>
                                     <div className="flex items-center justify-between pt-2 border-t border-slate-100">
-                                      <div className="flex items-center gap-1 bg-slate-50 px-2 py-1 rounded-lg border border-slate-200">
-                                        <span className="text-[10px] text-slate-500 font-bold mr-1">ลำดับ:</span>
-                                        <div
-                                          draggable={userRole !== 'public'}
-                                          onDragStart={(e) => {
-                                            e.dataTransfer.setData('text/plain', item.id);
-                                            setDraggedPatientId(item.id);
-                                          }}
-                                          onDragOver={(e) => {
-                                            e.preventDefault();
-                                            e.dataTransfer.dropEffect = 'move';
-                                          }}
-                                          onDrop={(e) => {
-                                            e.preventDefault();
-                                            const draggedId = e.dataTransfer.getData('text/plain') || draggedPatientId;
-                                            if (draggedId) {
-                                              reorderPatients(draggedId, item.id);
-                                              setDraggedPatientId(null);
-                                            }
-                                          }}
-                                          className="p-1 rounded bg-white hover:bg-rose-50 text-slate-500 hover:text-rose-600 border border-slate-200 cursor-grab active:cursor-grabbing"
-                                          title="คลิกค้างแล้วลากเพื่อย้ายลำดับ (Drag & Drop) ↕️"
-                                        >
-                                          <GripVertical className="w-3 h-3" />
+                                      {userRole === 'staff' && (
+                                        <div className="flex items-center gap-1 bg-slate-50 px-2 py-1 rounded-lg border border-slate-200">
+                                          <span className="text-[10px] text-slate-500 font-bold mr-1">ลำดับ:</span>
+                                          <div
+                                            draggable={userRole === 'staff'}
+                                            onDragStart={(e) => {
+                                              e.dataTransfer.setData('text/plain', item.id);
+                                              setDraggedPatientId(item.id);
+                                            }}
+                                            onDragOver={(e) => {
+                                              e.preventDefault();
+                                              e.dataTransfer.dropEffect = 'move';
+                                            }}
+                                            onDrop={(e) => {
+                                              e.preventDefault();
+                                              const draggedId = e.dataTransfer.getData('text/plain') || draggedPatientId;
+                                              if (draggedId) {
+                                                reorderPatients(draggedId, item.id);
+                                                setDraggedPatientId(null);
+                                              }
+                                            }}
+                                            className="p-1 rounded bg-white hover:bg-rose-50 text-slate-500 hover:text-rose-600 border border-slate-200 cursor-grab active:cursor-grabbing"
+                                            title="คลิกค้างแล้วลากเพื่อย้ายลำดับ (Drag & Drop) ↕️"
+                                          >
+                                            <GripVertical className="w-3 h-3" />
+                                          </div>
+                                          <button
+                                            type="button"
+                                            onClick={() => movePatientById(item.id, 'up')}
+                                            disabled={patients.findIndex(p => p.id === item.id) === 0}
+                                            className="p-1 rounded bg-white hover:bg-slate-100 text-slate-700 disabled:opacity-25 border border-slate-200 cursor-pointer"
+                                            title="เลื่อนลำดับขึ้น ⬆️"
+                                          >
+                                            <ArrowUp className="w-3 h-3" />
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => movePatientById(item.id, 'down')}
+                                            disabled={patients.findIndex(p => p.id === item.id) === patients.length - 1}
+                                            className="p-1 rounded bg-white hover:bg-slate-100 text-slate-700 disabled:opacity-25 border border-slate-200 cursor-pointer"
+                                            title="เลื่อนลำดับลง ⬇️"
+                                          >
+                                            <ArrowDown className="w-3 h-3" />
+                                          </button>
                                         </div>
-                                        <button
-                                          type="button"
-                                          onClick={() => movePatientById(item.id, 'up')}
-                                          disabled={patients.findIndex(p => p.id === item.id) === 0}
-                                          className="p-1 rounded bg-white hover:bg-slate-100 text-slate-700 disabled:opacity-25 border border-slate-200 cursor-pointer"
-                                          title="เลื่อนลำดับขึ้น ⬆️"
-                                        >
-                                          <ArrowUp className="w-3 h-3" />
-                                        </button>
-                                        <button
-                                          type="button"
-                                          onClick={() => movePatientById(item.id, 'down')}
-                                          disabled={patients.findIndex(p => p.id === item.id) === patients.length - 1}
-                                          className="p-1 rounded bg-white hover:bg-slate-100 text-slate-700 disabled:opacity-25 border border-slate-200 cursor-pointer"
-                                          title="เลื่อนลำดับลง ⬇️"
-                                        >
-                                          <ArrowDown className="w-3 h-3" />
-                                        </button>
-                                      </div>
-                                      <div className="flex items-center gap-2">
+                                      )}
+                                      <div className="flex items-center gap-2 ml-auto">
                                         <button
                                           type="button"
                                           onClick={() => openEditPatient(item)}
@@ -4285,7 +4289,7 @@ export default function App() {
                                   <th className="p-4 font-bold">กลุ่มคัดกรอง</th>
                                   <th className="p-4 font-bold">อสม. รับผิดชอบ</th>
                                   <th className="p-4 font-bold">ที่อยู่อาศัยหลัก</th>
-                                  <th className="p-4 text-center font-bold">ปรับลำดับ</th>
+                                  {userRole === 'staff' && <th className="p-4 text-center font-bold">ปรับลำดับ</th>}
                                   <th className="p-4 pr-6 text-right font-bold">จัดการ</th>
                                 </tr>
                               </thead>
@@ -4293,7 +4297,7 @@ export default function App() {
                                 {filteredDbPatients.map((item) => (
                                   <tr 
                                     key={item.id} 
-                                    draggable={userRole !== 'public'}
+                                    draggable={userRole === 'staff'}
                                     onDragStart={(e) => {
                                       e.dataTransfer.setData('text/plain', item.id);
                                       setDraggedPatientId(item.id);
@@ -4343,34 +4347,36 @@ export default function App() {
                                     </td>
                                     <td className="p-4 text-slate-700 font-semibold">{item.caregiver}</td>
                                     <td className="p-4 text-slate-500 max-w-xs truncate">{item.address}</td>
-                                    <td className="p-4 text-center">
-                                      <div className="flex items-center justify-center gap-1">
-                                        <div
-                                          className="p-1.5 rounded-lg bg-slate-100 hover:bg-rose-100 text-slate-500 hover:text-rose-700 cursor-grab active:cursor-grabbing transition-all shadow-2xs group"
-                                          title="คลิกค้างแล้วลากเพื่อย้ายลำดับ (Drag & Drop) ↕️"
-                                        >
-                                          <GripVertical className="w-3.5 h-3.5" />
+                                    {userRole === 'staff' && (
+                                      <td className="p-4 text-center">
+                                        <div className="flex items-center justify-center gap-1">
+                                          <div
+                                            className="p-1.5 rounded-lg bg-slate-100 hover:bg-rose-100 text-slate-500 hover:text-rose-700 cursor-grab active:cursor-grabbing transition-all shadow-2xs group"
+                                            title="คลิกค้างแล้วลากเพื่อย้ายลำดับ (Drag & Drop) ↕️"
+                                          >
+                                            <GripVertical className="w-3.5 h-3.5" />
+                                          </div>
+                                          <button
+                                            type="button"
+                                            onClick={() => movePatientById(item.id, 'up')}
+                                            disabled={patients.findIndex(p => p.id === item.id) === 0}
+                                            className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 disabled:opacity-25 disabled:cursor-not-allowed transition-all cursor-pointer shadow-2xs"
+                                            title="เลื่อนลำดับขึ้น ⬆️"
+                                          >
+                                            <ArrowUp className="w-3.5 h-3.5" />
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => movePatientById(item.id, 'down')}
+                                            disabled={patients.findIndex(p => p.id === item.id) === patients.length - 1}
+                                            className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 disabled:opacity-25 disabled:cursor-not-allowed transition-all cursor-pointer shadow-2xs"
+                                            title="เลื่อนลำดับลง ⬇️"
+                                          >
+                                            <ArrowDown className="w-3.5 h-3.5" />
+                                          </button>
                                         </div>
-                                        <button
-                                          type="button"
-                                          onClick={() => movePatientById(item.id, 'up')}
-                                          disabled={patients.findIndex(p => p.id === item.id) === 0}
-                                          className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 disabled:opacity-25 disabled:cursor-not-allowed transition-all cursor-pointer shadow-2xs"
-                                          title="เลื่อนลำดับขึ้น ⬆️"
-                                        >
-                                          <ArrowUp className="w-3.5 h-3.5" />
-                                        </button>
-                                        <button
-                                          type="button"
-                                          onClick={() => movePatientById(item.id, 'down')}
-                                          disabled={patients.findIndex(p => p.id === item.id) === patients.length - 1}
-                                          className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 disabled:opacity-25 disabled:cursor-not-allowed transition-all cursor-pointer shadow-2xs"
-                                          title="เลื่อนลำดับลง ⬇️"
-                                        >
-                                          <ArrowDown className="w-3.5 h-3.5" />
-                                        </button>
-                                      </div>
-                                    </td>
+                                      </td>
+                                    )}
                                     <td className="p-4 pr-6 text-right">
                                       <div className="flex items-center justify-end gap-2">
                                         <button
@@ -4614,7 +4620,7 @@ export default function App() {
                                   <th className="p-4 font-bold">ความสัมพันธ์</th>
                                   <th className="p-4 font-bold">เบอร์โทรศัพท์</th>
                                   <th className="p-4 font-bold">ที่อยู่อาศัยหลัก</th>
-                                  <th className="p-4 text-center font-bold">ปรับลำดับ</th>
+                                  {userRole === 'staff' && <th className="p-4 text-center font-bold">ปรับลำดับ</th>}
                                   <th className="p-4 pr-6 text-right font-bold">จัดการ</th>
                                 </tr>
                               </thead>
@@ -4622,7 +4628,7 @@ export default function App() {
                                 {filteredCaregivers.map((item) => (
                                   <tr 
                                     key={item.id} 
-                                    draggable={userRole !== 'public'}
+                                    draggable={userRole === 'staff'}
                                     onDragStart={(e) => {
                                       e.dataTransfer.setData('text/plain', item.id);
                                       setDraggedCaregiverId(item.id);
@@ -4666,34 +4672,36 @@ export default function App() {
                                     </td>
                                     <td className="p-4 font-mono text-slate-600">{item.phone}</td>
                                     <td className="p-4 text-slate-500 max-w-xs truncate">{item.address}</td>
-                                    <td className="p-4 text-center">
-                                      <div className="flex items-center justify-center gap-1">
-                                        <div
-                                          className="p-1.5 rounded-lg bg-slate-100 hover:bg-emerald-100 text-slate-500 hover:text-emerald-700 cursor-grab active:cursor-grabbing transition-all shadow-2xs group"
-                                          title="คลิกค้างแล้วลากเพื่อย้ายลำดับ (Drag & Drop) ↕️"
-                                        >
-                                          <GripVertical className="w-3.5 h-3.5" />
+                                    {userRole === 'staff' && (
+                                      <td className="p-4 text-center">
+                                        <div className="flex items-center justify-center gap-1">
+                                          <div
+                                            className="p-1.5 rounded-lg bg-slate-100 hover:bg-emerald-100 text-slate-500 hover:text-emerald-700 cursor-grab active:cursor-grabbing transition-all shadow-2xs group"
+                                            title="คลิกค้างแล้วลากเพื่อย้ายลำดับ (Drag & Drop) ↕️"
+                                          >
+                                            <GripVertical className="w-3.5 h-3.5" />
+                                          </div>
+                                          <button
+                                            type="button"
+                                            onClick={() => moveCaregiverById(item.id, 'up')}
+                                            disabled={caregivers.findIndex(c => c.id === item.id) === 0}
+                                            className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 disabled:opacity-25 disabled:cursor-not-allowed transition-all cursor-pointer shadow-2xs"
+                                            title="เลื่อนลำดับขึ้น ⬆️"
+                                          >
+                                            <ArrowUp className="w-3.5 h-3.5" />
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => moveCaregiverById(item.id, 'down')}
+                                            disabled={caregivers.findIndex(c => c.id === item.id) === caregivers.length - 1}
+                                            className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 disabled:opacity-25 disabled:cursor-not-allowed transition-all cursor-pointer shadow-2xs"
+                                            title="เลื่อนลำดับลง ⬇️"
+                                          >
+                                            <ArrowDown className="w-3.5 h-3.5" />
+                                          </button>
                                         </div>
-                                        <button
-                                          type="button"
-                                          onClick={() => moveCaregiverById(item.id, 'up')}
-                                          disabled={caregivers.findIndex(c => c.id === item.id) === 0}
-                                          className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 disabled:opacity-25 disabled:cursor-not-allowed transition-all cursor-pointer shadow-2xs"
-                                          title="เลื่อนลำดับขึ้น ⬆️"
-                                        >
-                                          <ArrowUp className="w-3.5 h-3.5" />
-                                        </button>
-                                        <button
-                                          type="button"
-                                          onClick={() => moveCaregiverById(item.id, 'down')}
-                                          disabled={caregivers.findIndex(c => c.id === item.id) === caregivers.length - 1}
-                                          className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 disabled:opacity-25 disabled:cursor-not-allowed transition-all cursor-pointer shadow-2xs"
-                                          title="เลื่อนลำดับลง ⬇️"
-                                        >
-                                          <ArrowDown className="w-3.5 h-3.5" />
-                                        </button>
-                                      </div>
-                                    </td>
+                                      </td>
+                                    )}
                                     <td className="p-4 pr-6 text-right">
                                       {userRole === 'staff' ? (
                                         <div className="flex items-center justify-end gap-2">
@@ -4941,7 +4949,7 @@ export default function App() {
                                   <th className="p-4 font-bold">การสนับสนุน / คุณประโยชน์ต่อชุมชน</th>
                                   <th className="p-4 font-bold">เบอร์โทรศัพท์</th>
                                   <th className="p-4 font-bold">ที่อยู่อาศัย / ที่ตั้ง</th>
-                                  <th className="p-4 text-center font-bold">ปรับลำดับ</th>
+                                  {userRole === 'staff' && <th className="p-4 text-center font-bold">ปรับลำดับ</th>}
                                   <th className="p-4 pr-6 text-right font-bold">จัดการ</th>
                                 </tr>
                               </thead>
@@ -4949,7 +4957,7 @@ export default function App() {
                                 {filteredBenefactors.map((item) => (
                                   <tr 
                                     key={item.id} 
-                                    draggable={userRole !== 'public'}
+                                    draggable={userRole === 'staff'}
                                     onDragStart={(e) => {
                                       e.dataTransfer.setData('text/plain', item.id);
                                       setDraggedBenefactorId(item.id);
@@ -4993,34 +5001,36 @@ export default function App() {
                                     </td>
                                     <td className="p-4 font-mono text-slate-600">{item.phone}</td>
                                     <td className="p-4 text-slate-500 max-w-xs truncate">{item.address}</td>
-                                    <td className="p-4 text-center">
-                                      <div className="flex items-center justify-center gap-1">
-                                        <div
-                                          className="p-1.5 rounded-lg bg-slate-100 hover:bg-amber-100 text-slate-500 hover:text-amber-700 cursor-grab active:cursor-grabbing transition-all shadow-2xs group"
-                                          title="คลิกค้างแล้วลากเพื่อย้ายลำดับ (Drag & Drop) ↕️"
-                                        >
-                                          <GripVertical className="w-3.5 h-3.5" />
+                                    {userRole === 'staff' && (
+                                      <td className="p-4 text-center">
+                                        <div className="flex items-center justify-center gap-1">
+                                          <div
+                                            className="p-1.5 rounded-lg bg-slate-100 hover:bg-amber-100 text-slate-500 hover:text-amber-700 cursor-grab active:cursor-grabbing transition-all shadow-2xs group"
+                                            title="คลิกค้างแล้วลากเพื่อย้ายลำดับ (Drag & Drop) ↕️"
+                                          >
+                                            <GripVertical className="w-3.5 h-3.5" />
+                                          </div>
+                                          <button
+                                            type="button"
+                                            onClick={() => moveBenefactorById(item.id, 'up')}
+                                            disabled={benefactors.findIndex(b => b.id === item.id) === 0}
+                                            className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 disabled:opacity-25 disabled:cursor-not-allowed transition-all cursor-pointer shadow-2xs"
+                                            title="เลื่อนลำดับขึ้น ⬆️"
+                                          >
+                                            <ArrowUp className="w-3.5 h-3.5" />
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => moveBenefactorById(item.id, 'down')}
+                                            disabled={benefactors.findIndex(b => b.id === item.id) === benefactors.length - 1}
+                                            className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 disabled:opacity-25 disabled:cursor-not-allowed transition-all cursor-pointer shadow-2xs"
+                                            title="เลื่อนลำดับลง ⬇️"
+                                          >
+                                            <ArrowDown className="w-3.5 h-3.5" />
+                                          </button>
                                         </div>
-                                        <button
-                                          type="button"
-                                          onClick={() => moveBenefactorById(item.id, 'up')}
-                                          disabled={benefactors.findIndex(b => b.id === item.id) === 0}
-                                          className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 disabled:opacity-25 disabled:cursor-not-allowed transition-all cursor-pointer shadow-2xs"
-                                          title="เลื่อนลำดับขึ้น ⬆️"
-                                        >
-                                          <ArrowUp className="w-3.5 h-3.5" />
-                                        </button>
-                                        <button
-                                          type="button"
-                                          onClick={() => moveBenefactorById(item.id, 'down')}
-                                          disabled={benefactors.findIndex(b => b.id === item.id) === benefactors.length - 1}
-                                          className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 disabled:opacity-25 disabled:cursor-not-allowed transition-all cursor-pointer shadow-2xs"
-                                          title="เลื่อนลำดับลง ⬇️"
-                                        >
-                                          <ArrowDown className="w-3.5 h-3.5" />
-                                        </button>
-                                      </div>
-                                    </td>
+                                      </td>
+                                    )}
                                     <td className="p-4 pr-6 text-right">
                                       {userRole === 'staff' ? (
                                         <div className="flex items-center justify-end gap-2">

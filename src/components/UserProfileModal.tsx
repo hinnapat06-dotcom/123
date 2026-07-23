@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { User as UserIcon, X, Edit3, Check, Shield } from 'lucide-react';
+import { User as UserIcon, X, Edit3, Check, Shield, Camera, Upload, Link as LinkIcon, Image as ImageIcon } from 'lucide-react';
 import { UserProfile, UserRole } from '../types';
 
 interface UserProfileModalProps {
@@ -20,6 +20,25 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   onSaveProfile,
   userRole,
 }) => {
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        alert('⚠️ ขนาดไฟล์รูปภาพต้องไม่เกิน 5 MB');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        if (typeof reader.result === 'string') {
+          setCustomProfile(prev => ({ ...prev, photoURL: reader.result as string }));
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -53,9 +72,38 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             {/* Modal Body */}
             <div className="p-4 sm:p-6 overflow-y-auto custom-scrollbar space-y-5 flex-1 bg-slate-50/50">
               
-              {/* User Info Section */}
+              {/* User Avatar & Info Header Card */}
               <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs flex flex-col sm:flex-row items-center gap-4">
-                <div className="flex-1 text-center sm:text-left space-y-2">
+                {/* Photo Preview & Quick File Upload */}
+                <div className="relative group shrink-0">
+                  <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full border-4 border-blue-100 shadow-md overflow-hidden bg-slate-100 relative">
+                    <img
+                      src={customProfile.photoURL || 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=256&q=80'}
+                      alt="Profile Avatar"
+                      className="w-full h-full object-cover"
+                      referrerPolicy="no-referrer"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="absolute inset-0 bg-slate-900/50 text-white opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center transition-opacity cursor-pointer backdrop-blur-[2px]"
+                      title="อัปโหลดรูปโปรไฟล์"
+                    >
+                      <Camera className="w-6 h-6 mb-0.5 text-white" />
+                      <span className="text-[9px] font-bold">เปลี่ยนรูป</span>
+                    </button>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="absolute bottom-0 right-0 p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-md transition-all active:scale-95 cursor-pointer border-2 border-white"
+                    title="เลือกไฟล์รูปถ่าย"
+                  >
+                    <Camera className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                <div className="flex-1 text-center sm:text-left space-y-1.5">
                   <div>
                     <h4 className="font-extrabold text-slate-800 text-base">{customProfile.displayName}</h4>
                     <p className="text-xs text-slate-500 font-mono">{customProfile.email}</p>
@@ -68,15 +116,55 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                       ID: {customProfile.badgeId}
                     </span>
                   </div>
+                  <div className="pt-2">
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-xl text-xs font-bold transition-all cursor-pointer inline-flex items-center gap-1.5"
+                    >
+                      <Upload className="w-3.5 h-3.5 text-blue-600" />
+                      <span>อัปโหลดรูปโปรไฟล์ใหม่</span>
+                    </button>
+                  </div>
                 </div>
               </div>
+
+              {/* Hidden File Input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleImageFileChange}
+                className="hidden"
+              />
 
               {/* Edit Form */}
               <form onSubmit={onSaveProfile} className="space-y-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs">
                 <h4 className="font-bold text-xs uppercase tracking-wider text-slate-400 border-b border-slate-100 pb-2 flex items-center gap-1.5">
                   <Edit3 className="w-3.5 h-3.5 text-blue-600" />
-                  <span>แก้ไขรายละเอียดข้อมูลส่วนตัว</span>
+                  <span>แก้ไขรายละเอียดข้อมูลส่วนตัวและรูปโปรไฟล์</span>
                 </h4>
+
+                {/* Photo URL Input */}
+                <div>
+                  <label className="block text-[10px] uppercase font-bold text-slate-500 mb-1 flex items-center justify-between">
+                    <span className="flex items-center gap-1">
+                      <ImageIcon className="w-3 h-3 text-blue-600" />
+                      <span>ลิงก์รูปโปรไฟล์ (Image URL หรือ base64)</span>
+                    </span>
+                    <span className="text-[9px] text-slate-400 font-normal">สามารถอัปโหลดไฟล์ด้านบนหรือใส่ URL ได้</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={customProfile.photoURL}
+                      onChange={(e) => setCustomProfile(p => ({ ...p, photoURL: e.target.value }))}
+                      placeholder="https://... หรืออัปโหลดไฟล์รูปภาพ"
+                      className="w-full pl-8 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-800 focus:bg-white focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                    />
+                    <LinkIcon className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
+                  </div>
+                </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                   <div>
@@ -199,3 +287,4 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
     </AnimatePresence>
   );
 };
+
