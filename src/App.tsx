@@ -3701,7 +3701,7 @@ export default function App() {
                     {/* Content Body */}
                     <div className="flex-1 overflow-y-auto lg:overflow-hidden flex flex-col lg:flex-row p-3 sm:p-6 gap-4 sm:gap-6 touch-scroll">
                       {/* Left: Registration Form */}
-                      <div className="w-full lg:w-[380px] bg-white rounded-2xl border border-slate-200 p-5 shadow-sm shrink-0 overflow-y-auto custom-scrollbar flex flex-col space-y-4">
+                      <div className="hidden lg:flex w-full lg:w-[380px] bg-white rounded-2xl border border-slate-200 p-5 shadow-sm shrink-0 overflow-y-auto custom-scrollbar flex-col space-y-4">
                         <div>
                           <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider font-mono">ลงทะเบียน อสม. รายใหม่</h3>
                           <p className="text-[11px] text-slate-500 mt-1">กรอกข้อมูลการลงทะเบียนให้ถูกต้องครบถ้วนเพื่อจัดทำระบบรายงาน</p>
@@ -3860,7 +3860,8 @@ export default function App() {
                               <p className="text-xs font-bold">ไม่พบข้อมูลรายชื่อ อสม. ตรงตามที่ค้นหา</p>
                             </div>
                           ) : (
-                            <table className="w-full text-xs text-left border-collapse">
+                            <>
+                            <table className="w-full text-xs text-left border-collapse hidden sm:table">
                               <thead>
                                 <tr className="bg-slate-50 text-slate-400 font-mono border-b border-slate-100">
                                   <th className="p-4 pl-6 font-bold">รหัสผู้ดูแล</th>
@@ -3982,6 +3983,26 @@ export default function App() {
                                 ))}
                               </tbody>
                             </table>
+                            <div className="sm:hidden space-y-3 p-4">
+                              {filteredVhvs.map((item) => (
+                                <div key={item.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-3 w-[92%] max-w-[360px] mx-auto p-4 text-sm">
+                                  <div className="flex items-center justify-between">
+                                    <span className="font-mono text-[10px] font-bold text-slate-400">{item.id}</span>
+                                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black border ${item.type === 'อสม' ? 'bg-blue-50 text-blue-700 border-blue-100' : 'bg-indigo-50 text-indigo-700 border-indigo-100'}`}>{item.type}</span>
+                                  </div>
+                                  <div className="font-bold text-slate-800 text-sm">{item.name}</div>
+                                  <div className="text-xs text-slate-600 space-y-1">
+                                    <p className="flex justify-between"><span className="text-slate-400">หมู่บ้าน:</span><span className="font-semibold">{item.moo || '-'}</span></p>
+                                    <p className="flex justify-between"><span className="text-slate-400">โทรศัพท์:</span><span className="font-semibold">{item.phone}</span></p>
+                                    <p className="text-[11px] text-slate-500 pt-1 border-t">📍 {item.address}</p>
+                                  </div>
+                                  <div className="pt-2 border-t flex justify-end">
+                                    <button onClick={() => openEditVhv(item)} className="text-blue-600 font-bold text-xs">แก้ไข</button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                            </>
                           )}
                         </div>
                       </div>
@@ -4015,7 +4036,7 @@ export default function App() {
                     {/* Content Body */}
                     <div className="flex-1 overflow-y-auto lg:overflow-hidden flex flex-col lg:flex-row p-3 sm:p-6 gap-4 sm:gap-6 touch-scroll">
                       {/* Left: Registration Form */}
-                      <div className="w-full lg:w-[380px] bg-white rounded-2xl border border-slate-200 p-5 shadow-sm shrink-0 overflow-y-auto custom-scrollbar flex flex-col space-y-4">
+                      <div className="hidden lg:flex w-full lg:w-[380px] bg-white rounded-2xl border border-slate-200 p-5 shadow-sm shrink-0 overflow-y-auto custom-scrollbar flex-col space-y-4">
                         <div>
                           <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider font-mono">ลงทะเบียนผู้ป่วยภาวะพึ่งพิง</h3>
                           <p className="text-[11px] text-slate-500 mt-1">เพิ่มข้อมูลกลุ่มประชากรเป้าหมายเพื่อใช้วาดพิกัดแผนที่และการประเมินอาการ</p>
@@ -4246,7 +4267,7 @@ export default function App() {
                               {/* Mobile Card Layout (Visible on smartphones) */}
                               <div className="grid grid-cols-1 gap-3 p-3 sm:hidden">
                                 {filteredDbPatients.map((item) => (
-                                  <div key={item.id} className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs space-y-2">
+                                  <div key={item.id} className="bg-white rounded-xl border border-slate-200 shadow-2xs flex flex-col gap-3 w-[92%] max-w-[360px] mx-auto p-4 text-sm">
                                     <div className="flex items-center justify-between">
                                       <span className="font-mono text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded">{item.id}</span>
                                       <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black border ${
@@ -4273,6 +4294,18 @@ export default function App() {
                                       <p className="flex items-center justify-between">
                                         <span className="text-slate-400 font-semibold">อสม. รับผิดชอบ:</span>
                                         <span className="font-semibold text-slate-800">{item.caregiver}</span>
+                                      </p>
+                                      <p className="flex items-center justify-between">
+                                        <span className="text-slate-400 font-semibold">เบอร์โทรศัพท์:</span>
+                                        <span className="font-semibold text-slate-800">{item.phone || '-'}</span>
+                                      </p>
+                                      <p className="flex items-center justify-between">
+                                        <span className="text-slate-400 font-semibold">สัญญาณชีพ:</span>
+                                        <span className="font-semibold text-slate-800">{item.vitalSigns || '-'}</span>
+                                      </p>
+                                      <p className="flex items-center justify-between">
+                                        <span className="text-slate-400 font-semibold">เยี่ยมล่าสุด:</span>
+                                        <span className="font-semibold text-slate-800">{item.lastVisited || '-'}</span>
                                       </p>
                                       <p className="text-[11px] text-slate-500 pt-1 border-t border-slate-100">📍 {item.address}</p>
                                     </div>
