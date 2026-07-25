@@ -1,0 +1,48 @@
+{
+  "entities": {
+    "Patient": {
+      "title": "Patient",
+      "description": "Information about a patient",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "cid": { "type": "string" },
+        "name": { "type": "string" },
+        "category": { "type": "string" },
+        "address": { "type": "string" },
+        "moo": { "type": "string" },
+        "vitalSigns": { "type": "string" },
+        "caregiver": { "type": "string" },
+        "lat": { "type": "number" },
+        "lng": { "type": "number" },
+        "lastVisited": { "type": "string" },
+        "phone": { "type": "string" }
+      },
+      "required": ["id", "name", "category", "address", "lat", "lng"]
+    },
+    "Activity": {
+      "title": "Activity",
+      "description": "Activity log",
+      "type": "object",
+      "properties": {
+        "timestamp": { "type": "string" },
+        "patientName": { "type": "string" },
+        "caregiverName": { "type": "string" },
+        "type": { "type": "string" },
+        "description": { "type": "string" },
+        "status": { "type": "string" }
+      },
+      "required": ["timestamp", "patientName", "type", "status"]
+    }
+  },
+  "firestore": {
+    "/patients/{patientId}": {
+      "schema": "Patient",
+      "description": "Patients"
+    },
+    "/activities/{activityId}": {
+      "schema": "Activity",
+      "description": "Activities"
+    }
+  }
+}
