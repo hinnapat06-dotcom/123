@@ -50,6 +50,7 @@ import {
   Download,
   Clipboard,
   Shield,
+  ShieldCheck,
   Mail,
   UserCheck,
   Menu,
@@ -249,6 +250,10 @@ export default function App() {
   });
   const [loading, setLoading] = useState<boolean>(true);
   const [syncing, setSyncing] = useState<boolean>(false);
+
+  const isRealGoogleToken = (t: string | null): boolean => {
+    return typeof t === 'string' && t.startsWith('ya29.');
+  };
   const [currentTab, setCurrentTab] = useState<'dashboard' | 'map' | 'vhv' | 'patient' | 'caregiver' | 'analytics' | 'logs' | 'team' | 'import'>('dashboard');
 
   // Map 2: Main Thailand & Phai Tam Clear Google Maps Controls
@@ -444,7 +449,7 @@ export default function App() {
       const saved = localStorage.getItem('stitchsync_patients');
       if (saved !== null) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length >= SEED_PATIENTS.length) {
+        if (Array.isArray(parsed)) {
           return parsed;
         }
       }
@@ -456,7 +461,10 @@ export default function App() {
     try {
       const saved = localStorage.getItem('stitchsync_activities');
       if (saved !== null) {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return parsed;
+        }
       }
     } catch (e) {}
     return SEED_ACTIVITIES;
@@ -511,7 +519,7 @@ export default function App() {
       const saved = localStorage.getItem('stitchsync_vhvs');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length >= INITIAL_VHVS_LIST.length) return parsed;
+        if (Array.isArray(parsed)) return parsed;
       }
     } catch (e) {}
     return INITIAL_VHVS_LIST;
@@ -523,7 +531,7 @@ export default function App() {
       const saved = localStorage.getItem('stitchsync_caregivers');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length >= INITIAL_CAREGIVERS_LIST.length) {
+        if (Array.isArray(parsed)) {
           return parsed;
         }
       }
@@ -535,7 +543,10 @@ export default function App() {
   const [benefactors, setBenefactors] = useState<BenefactorItem[]>(() => {
     try {
       const saved = localStorage.getItem('stitchsync_benefactors');
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
     } catch (e) {}
     return INITIAL_BENEFACTORS_LIST;
   });
@@ -599,6 +610,14 @@ export default function App() {
   const [editBenContribution, setEditBenContribution] = useState<string>('');
 
   // Save changes to localStorage
+  useEffect(() => {
+    localStorage.setItem('stitchsync_patients', JSON.stringify(patients));
+  }, [patients]);
+
+  useEffect(() => {
+    localStorage.setItem('stitchsync_activities', JSON.stringify(activities));
+  }, [activities]);
+
   useEffect(() => {
     localStorage.setItem('stitchsync_vhvs', JSON.stringify(vhvs));
   }, [vhvs]);
@@ -826,7 +845,7 @@ export default function App() {
   const addLog = (
     type: string, 
     details: string, 
-    status: 'success' | 'error' | 'pending' = 'success',
+    status: 'success' | 'error' | 'pending' | 'warning' = 'success',
     customUserId?: string,
     customIp?: string,
     customLoc?: string
@@ -1047,7 +1066,13 @@ export default function App() {
       }
     } catch (error: any) {
       console.error(error);
-      addLog('Auth', `เข้าสู่ระบบไม่สำเร็จ: ${error.message}`, 'error');
+      const errMsg = error?.message || String(error);
+      if (errMsg.includes('หน้าต่างเข้าสู่ระบบถูกปิด') || errMsg.includes('popup-closed-by-user')) {
+        addLog('Auth', 'ยกเลิกการเข้าสู่ระบบ', 'pending');
+      } else {
+        addLog('Auth', `เข้าสู่ระบบไม่สำเร็จ: ${errMsg}`, 'error');
+        alert(`⚠️ การเข้าถึงถูกบล็อกโดย Google (Error 403: access_denied / Testing Mode)\n\nเนื่องจากแอปอยู่ในช่วงทดสอบ (Google OAuth Testing Mode) บัญชีของคุณยังไม่ได้เพิ่มใน Test Users บน Google Cloud Console\n\n💡 วิธีเข้าใช้งานได้ทันทีโดยไม่ต้องผ่านปุ่ม Google:\n1. พิมพ์อีเมล Gmail ของท่าน (เช่น chinnapat37428@gmail.com) ในช่อง "อีเมล Gmail เจ้าหน้าที่" ด้านล่าง\n2. แล้วกดปุ่ม "ยืนยันเข้าสู่ระบบด้วย Gmail" หรือกดปุ่ม "⚡ เข้าใช้งานด่วน" ได้ทันที!`);
+      }
     } finally {
       setLoading(false);
     }
@@ -1275,7 +1300,7 @@ export default function App() {
         if (localPatients !== null) {
           try {
             const parsed = JSON.parse(localPatients);
-            if (Array.isArray(parsed) && parsed.length >= SEED_PATIENTS.length) {
+            if (Array.isArray(parsed)) {
               loadedPatients = parsed;
             } else {
               loadedPatients = SEED_PATIENTS;
@@ -1357,7 +1382,7 @@ export default function App() {
         if (localPatients) {
           try {
             const parsed = JSON.parse(localPatients);
-            if (Array.isArray(parsed) && parsed.length >= SEED_PATIENTS.length) {
+            if (Array.isArray(parsed)) {
               loadedPatients = parsed;
             }
           } catch (e) {}
@@ -1880,47 +1905,38 @@ export default function App() {
 
     setTimeout(async () => {
       try {
-        if (!token || token === 'mock-staff-token') {
-          // Sync locally
-          const existingNames = new Set(patients.map(p => p.name));
-          const newToAppend = sheetPatients.filter(p => !existingNames.has(p.name));
-          
-          if (newToAppend.length === 0) {
-            alert('ข้อมูลรายชื่อทั้งหมดเชื่อมโยงอยู่แล้ว ไม่จำเป็นต้องนำเข้าซ้ำ');
-            addLog('Sheets Sync', 'ไม่พบรายชื่อใหม่ในการซิงค์ฐานข้อมูล', 'success');
-            setSyncing(false);
-            return;
-          }
-
-          const updated = [...newToAppend, ...patients];
-          setPatients(updated);
-          localStorage.setItem('stitchsync_patients', JSON.stringify(updated));
-          addLog('Local DB', `ซิงค์รายชื่อใหม่ ${newToAppend.length} รายการลงระบบ Sandbox สำเร็จ!`, 'success');
-          alert(`ซิงค์ข้อมูลใหม่สำเร็จ! เพิ่มประชากรใหม่เข้าสู่ระบบจำนวน ${newToAppend.length} ราย`);
-        } else {
-          // Sync with Google Sheets DB
-          const sheetsService = new SheetsService(token);
-          const existingNames = new Set(patients.map(p => p.name));
-          const newToAppend = sheetPatients.filter(p => !existingNames.has(p.name));
-
-          if (newToAppend.length === 0) {
-            alert('รายชื่อทั้งหมดในตารางเชื่อมโยงกับระบบหลักเรียบร้อยแล้ว');
-            addLog('Sheets Sync', 'ระบบหลักได้รับการอัปเดตเรียบร้อยก่อนหน้าแล้ว', 'success');
-            setSyncing(false);
-            return;
-          }
-
-          addLog('Sheets Sync', `กำลังอัปโหลดรายชื่อผู้ป่วย ${newToAppend.length} รายทีละคน...`, 'pending');
-          let successCount = 0;
-          for (const p of newToAppend) {
-            const ok = await sheetsService.addPatient(p);
-            if (ok) successCount++;
-          }
-
-          addLog('Sheets Sync', `ซิงค์ขึ้น Google Sheets หลักสำเร็จ ${successCount}/${newToAppend.length} ราย`, 'success');
-          await fetchData(token);
-          alert(`ซิงค์ข้อมูลเข้าระบบ Google Sheets สำเร็จ! เพิ่มขึ้นทั้งหมด ${successCount} รายชื่อ`);
+        const existingNames = new Set(patients.map(p => p.name));
+        const newToAppend = sheetPatients.filter(p => !existingNames.has(p.name));
+        
+        if (newToAppend.length === 0) {
+          alert('ข้อมูลรายชื่อทั้งหมดเชื่อมโยงอยู่แล้ว ไม่จำเป็นต้องนำเข้าซ้ำ');
+          addLog('Sheets Sync', 'ไม่พบรายชื่อใหม่ในการซิงค์ฐานข้อมูล', 'success');
+          setSyncing(false);
+          return;
         }
+
+        // Save locally first
+        const updated = [...newToAppend, ...patients];
+        setPatients(updated);
+        localStorage.setItem('stitchsync_patients', JSON.stringify(updated));
+        addLog('Local DB', `ซิงค์รายชื่อใหม่ ${newToAppend.length} รายการลงระบบเรียบร้อย!`, 'success');
+
+        if (isRealGoogleToken(token)) {
+          try {
+            const sheetsService = new SheetsService(token!);
+            let successCount = 0;
+            for (const p of newToAppend) {
+              const ok = await sheetsService.addPatient(p);
+              if (ok) successCount++;
+            }
+            addLog('Sheets Sync', `ซิงค์ขึ้น Google Sheets หลักสำเร็จ ${successCount}/${newToAppend.length} ราย`, 'success');
+          } catch (cloudErr: any) {
+            console.error('Cloud sync error:', cloudErr);
+            addLog('Sheets Sync', `การซิงค์ Google Sheets ขัดข้อง: ${cloudErr.message} (บันทึกในเครื่องเรียบร้อยแล้ว)`, 'warning');
+          }
+        }
+
+        alert(`ซิงค์ข้อมูลใหม่สำเร็จ! เพิ่มประชากรใหม่เข้าสู่ระบบจำนวน ${newToAppend.length} ราย`);
       } catch (err: any) {
         console.error(err);
         addLog('Sheets Sync', `เกิดข้อผิดพลาดในการซิงค์: ${err.message}`, 'error');
@@ -1928,7 +1944,7 @@ export default function App() {
       } finally {
         setSyncing(false);
       }
-    }, 1000);
+    }, 500);
   };
 
   const handleFullGoogleSheetsSync = async () => {
@@ -1937,7 +1953,7 @@ export default function App() {
     addLog('Sheets Sync', 'เริ่มขั้นตอนเชื่อมต่อและซิงค์ข้อมูลกับ Google Sheets...', 'pending');
 
     try {
-      if (!activeToken || activeToken === 'mock-staff-token') {
+      if (!isRealGoogleToken(activeToken)) {
         addLog('Auth', 'กำลังเปิดหน้าจอยืนยันสิทธิ์ Google Sign-In เพื่อขอสิทธิ์ Google Sheets...', 'pending');
         const result = await googleSignIn();
         if (result && result.accessToken) {
@@ -2052,78 +2068,50 @@ export default function App() {
     setSyncing(true);
     addLog('My Maps Import', `กำลังนำเข้าประชากรสุขภาพใหม่จำนวน ${importedPatients.length} ราย...`, 'pending');
 
-    if (!token || token === 'mock-staff-token') {
-      // Save locally (Sandbox)
-      setTimeout(() => {
-        const existingNames = new Set(patients.map(p => p.name));
-        const newToAppend = importedPatients.filter(p => !existingNames.has(p.name));
-        
-        if (newToAppend.length === 0) {
-          addLog('Local DB', `ไม่พบบัญชีใหม่เนื่องจากรายชื่อซ้ำกับที่มีอยู่แล้วทั้งหมด`, 'error');
-          alert('รายชื่อผู้ป่วยทั้งหมดมีอยู่ในการจำลองข้อมูลแล้ว');
-          setSyncing(false);
-          return;
-        }
-
-        const updatedPatients = [...newToAppend, ...patients];
-        setPatients(updatedPatients);
-        localStorage.setItem('stitchsync_patients', JSON.stringify(updatedPatients));
-
-        addLog('Local DB', `นำเข้าข้อมูลและพิกัดแผนที่เพิ่มใหม่ ${newToAppend.length} รายลงคลังสำเร็จ!`, 'success');
-        alert(`นำเข้าผู้ป่วยและพิกัดใหม่จำนวน ${newToAppend.length} รายสำเร็จ! (เข้าคลังจำลอง)`);
-        setImportedPatients([]);
-        setKmlInput('');
-        setSyncing(false);
-        setCurrentTab('analytics');
-      }, 500);
+    const existingNames = new Set(patients.map(p => p.name));
+    const newToAppend = importedPatients.filter(p => !existingNames.has(p.name));
+    
+    if (newToAppend.length === 0) {
+      addLog('Local DB', `ไม่พบบัญชีใหม่เนื่องจากรายชื่อซ้ำกับที่มีอยู่แล้วทั้งหมด`, 'error');
+      alert('รายชื่อผู้ป่วยทั้งหมดมีอยู่แล้วในระบบ');
+      setSyncing(false);
       return;
     }
 
-    // Save to Google Sheets Cloud DB
-    try {
-      const sheetsService = new SheetsService(token);
-      let successCount = 0;
-      
-      const existingNames = new Set(patients.map(p => p.name));
-      const newToAppend = importedPatients.filter(p => !existingNames.has(p.name));
-      
-      if (newToAppend.length === 0) {
-        addLog('Sheets DB', 'รายชื่อผู้ป่วยเหล่านี้ถูกบันทึกใน Google Sheets แล้วทั้งหมด', 'success');
-        alert('ผู้ป่วยทุกรายจากแผนที่ถูกนำเข้าเรียบร้อยแล้ว (ไม่พบข้อมูลรายชื่อใหม่)');
-        setSyncing(false);
-        return;
-      }
+    // Always save locally first to ensure data persistence
+    const updatedPatients = [...newToAppend, ...patients];
+    setPatients(updatedPatients);
+    localStorage.setItem('stitchsync_patients', JSON.stringify(updatedPatients));
 
-      for (const p of newToAppend) {
-        const ok = await sheetsService.addPatient(p);
-        if (ok) successCount++;
-      }
+    addLog('Local DB', `นำเข้าข้อมูลและพิกัดแผนที่เพิ่มใหม่ ${newToAppend.length} รายลงระบบสำเร็จ!`, 'success');
 
-      if (successCount > 0) {
+    if (isRealGoogleToken(token)) {
+      try {
+        const sheetsService = new SheetsService(token!);
+        let successCount = 0;
+        for (const p of newToAppend) {
+          const ok = await sheetsService.addPatient(p);
+          if (ok) successCount++;
+        }
         addLog('Sheets DB', `เขียนข้อมูลลงแผ่นงานสำเร็จ: บันทึกคนไข้เพิ่มพิกัด ${successCount} ราย`, 'success');
-        await fetchData(token);
-        alert(`นำเข้าพิกัดและข้อมูลผู้ป่วย/อสม./caregiver จำนวน ${successCount} รายเข้าสู่ Google Sheets สำเร็จ!`);
-        setImportedPatients([]);
-        setKmlInput('');
-        setCurrentTab('analytics');
-      } else {
-        addLog('Sheets DB', 'การนำเข้าข้อมูลไม่สำเร็จ', 'error');
-        alert('นำเข้าไม่สำเร็จ กรุณาตรวจสอบสิทธิ์การเขียนไฟล์แผ่นงาน');
+      } catch (error: any) {
+        console.error(error);
+        addLog('Sheets DB', `เกิดข้อผิดพลาดในการเซฟเข้า Google Sheets: ${error.message} (บันทึกในเครื่องแล้ว)`, 'warning');
       }
-    } catch (error: any) {
-      console.error(error);
-      addLog('Sheets DB', `เกิดข้อผิดพลาดในการเซฟเข้า Google Sheets: ${error.message}`, 'error');
-      alert(`ไม่สามารถซิงค์ข้อมูลเข้า Google Sheets: ${error.message}`);
-    } finally {
-      setSyncing(false);
     }
+
+    alert(`นำเข้าผู้ป่วยและพิกัดใหม่จำนวน ${newToAppend.length} รายสำเร็จ!`);
+    setImportedPatients([]);
+    setKmlInput('');
+    setSyncing(false);
+    setCurrentTab('analytics');
   };
 
   // Add a new activity (visited record)
   const submitNewVisit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (userRole !== 'staff' && userRole !== 'caregiver') {
-      alert('⚠️ สิทธิ์การใช้งานจำกัด: เฉพาะเจ้าหน้าที่สาธารณสุข, อสม. และผู้ดูแล Caregiver เท่านั้นที่ได้รับอนุญาตให้บันทึกรายงานผลการเข้าเยี่ยมบ้านได้');
+    if (userRole === 'public') {
+      alert('⚠️ สิทธิ์การใช้งานจำกัด: บุคคลทั่วไปได้รับอนุญาตให้ดูข้อมูลเท่านั้น (สิทธิ์อ่านอย่างเดียว) กรุณาลงชื่อเข้าใช้ในฐานะเจ้าหน้าที่หรือ อสม.');
       return;
     }
     if (!selectedPatientId) return;
@@ -2142,76 +2130,55 @@ export default function App() {
       status: visitStatus,
     };
 
-    if (!token || token === 'mock-staff-token') {
-      addLog('Local DB', `กำลังบันทึกรายงานเข้าเยี่ยม (จำลอง) สำหรับ: ${patient.name}...`, 'pending');
-      setTimeout(() => {
-        const updatedActivities = [newActivity, ...activities];
-        setActivities(updatedActivities);
-        localStorage.setItem('stitchsync_activities', JSON.stringify(updatedActivities));
-        
-        // Update patient lastVisited field locally
-        const updatedPatients = patients.map(p => {
-          if (p.id === patient.id) {
-            return {
-              ...p,
-              lastVisited: 'เมื่อสักครู่',
-              vitalSigns: visitVitalSigns || p.vitalSigns
-            };
-          }
-          return p;
-        });
-        setPatients(updatedPatients);
-        localStorage.setItem('stitchsync_patients', JSON.stringify(updatedPatients));
-
-        addLog('Local DB', `บันทึกรายงานเข้าเยี่ยมคุณ ${patient.name} สำเร็จลง Sandbox ของเบราว์เซอร์`, 'success');
-        
-        // Reset form and close modal
-        setVisitVitalSigns('');
-        setVisitDescription('');
-        setVisitStatus('Normal');
-        setIsModalOpen(false);
-        setSyncing(false);
-      }, 300);
-      return;
-    }
-
-    addLog('Sheets DB', `กำลังบันทึกรายงานเข้าเยี่ยมสำหรับ: ${patient.name}...`, 'pending');
-    try {
-      const sheetsService = new SheetsService(token);
-      
-      // Post activity to sheets
-      const success = await sheetsService.addActivity(newActivity);
-      if (success) {
-        addLog('Sheets DB', `บันทึกรายงานเข้าเยี่ยมคุณ ${patient.name} ลง Google Sheet สำเร็จ`, 'success');
-        
-        // Refresh local data to show the new list
-        await fetchData(token);
-        
-        // Reset form and close modal
-        setVisitVitalSigns('');
-        setVisitDescription('');
-        setVisitStatus('Normal');
-        setIsModalOpen(false);
-      } else {
-        throw new Error('Sheets API returned false status');
+    // Always update local state & localStorage first
+    const updatedActivities = [newActivity, ...activities];
+    setActivities(updatedActivities);
+    localStorage.setItem('stitchsync_activities', JSON.stringify(updatedActivities));
+    
+    // Update patient lastVisited field locally
+    const updatedPatients = patients.map(p => {
+      if (p.id === patient.id) {
+        return {
+          ...p,
+          lastVisited: 'เมื่อสักครู่',
+          vitalSigns: visitVitalSigns || p.vitalSigns
+        };
       }
-    } catch (error: any) {
-      console.error(error);
-      addLog('Sheets DB', `ไม่สามารถเพิ่มรายงานได้: ${error.message}`, 'error');
-      alert('บันทึกข้อมูลไม่สำเร็จ กรุณาลองใหม่อีกครั้ง');
-    } finally {
-      setSyncing(false);
+      return p;
+    });
+    setPatients(updatedPatients);
+    localStorage.setItem('stitchsync_patients', JSON.stringify(updatedPatients));
+
+    addLog('Local DB', `บันทึกรายงานเข้าเยี่ยมคุณ ${patient.name} สำเร็จ`, 'success');
+
+    if (isRealGoogleToken(token)) {
+      addLog('Sheets DB', `กำลังบันทึกรายงานเข้าเยี่ยมสำหรับ: ${patient.name}...`, 'pending');
+      try {
+        const sheetsService = new SheetsService(token!);
+        await sheetsService.addActivity(newActivity);
+        addLog('Sheets DB', `บันทึกรายงานเข้าเยี่ยมคุณ ${patient.name} ลง Google Sheet สำเร็จ`, 'success');
+      } catch (error: any) {
+        console.error(error);
+        addLog('Sheets DB', `ไม่สามารถเพิ่มรายงานใน Google Sheets: ${error.message} (บันทึกในเครื่องแล้ว)`, 'warning');
+      }
     }
+
+    // Reset form and close modal
+    setVisitVitalSigns('');
+    setVisitDescription('');
+    setVisitStatus('Normal');
+    setIsModalOpen(false);
+    setSyncing(false);
   };
 
   // Create a brand new patient
   const submitNewPatient = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (userRole !== 'staff') {
+    if (userRole === 'public') {
       alert('⚠️ สิทธิ์การใช้งานจำกัด: เฉพาะเจ้าหน้าที่สาธารณสุขและ อสม. เท่านั้นที่ได้รับอนุญาตให้ลงทะเบียนผู้ป่วยใหม่ได้');
       return;
     }
-    if (!newPatientName) return;
+    if (!newPatientName.trim()) return;
 
     setSyncing(true);
     const newId = `HN${String(patients.length + 1).padStart(3, '0')}`;
@@ -2222,12 +2189,12 @@ export default function App() {
     const newPatient: Patient = {
       id: newId,
       cid: newPatientCid.trim() || undefined,
-      name: newPatientName,
+      name: newPatientName.trim(),
       category: newPatientCategory,
       address: formattedAddress,
       moo: newPatientMoo,
       vitalSigns: newPatientVital || 'ปกติ',
-      caregiver: newPatientCaregiver || user?.displayName || 'อสม. สมศรี',
+      caregiver: newPatientCaregiver || user?.displayName || 'อสม. ผู้ดูแล',
       lat: 14.320 + (Math.random() - 0.5) * 0.015,
       lng: 100.815 + (Math.random() - 0.5) * 0.015,
       lastVisited: 'เพิ่งลงทะเบียน',
@@ -2236,70 +2203,47 @@ export default function App() {
 
     const newActivity: Activity = {
       timestamp: 'เมื่อสักครู่',
-      patientName: newPatientName,
+      patientName: newPatientName.trim(),
       caregiverName: user?.displayName || 'อสม. ผู้ดูแล',
       type: 'นัดหมาย',
       description: `ลงทะเบียนผู้ป่วยใหม่ในระบบ (${newPatientCategory}) ${newPatientMoo} ต.ไผ่ต่ำ`,
       status: 'Normal',
     };
 
-    if (!token || token === 'mock-staff-token') {
-      addLog('Local DB', `กำลังลงทะเบียนผู้ป่วยใหม่ (จำลอง): ${newPatientName}...`, 'pending');
-      setTimeout(() => {
-        const updatedPatients = [newPatient, ...patients];
-        const updatedActivities = [newActivity, ...activities];
-        
-        setPatients(updatedPatients);
-        setActivities(updatedActivities);
-        localStorage.setItem('stitchsync_patients', JSON.stringify(updatedPatients));
-        localStorage.setItem('stitchsync_activities', JSON.stringify(updatedActivities));
+    // Always save to React state + LocalStorage immediately
+    const updatedPatients = [newPatient, ...patients];
+    const updatedActivities = [newActivity, ...activities];
+    
+    setPatients(updatedPatients);
+    setActivities(updatedActivities);
+    localStorage.setItem('stitchsync_patients', JSON.stringify(updatedPatients));
+    localStorage.setItem('stitchsync_activities', JSON.stringify(updatedActivities));
 
-        addLog('Local DB', `ลงทะเบียนผู้ป่วยใหม่ ${newPatientName} (${newId}) [${newPatientMoo}] เรียบร้อย`, 'success');
-        
-        // Reset
-        setNewPatientCid('');
-        setNewPatientName('');
-        setNewPatientAddress('');
-        setNewPatientMoo('หมู่ 1');
-        setNewPatientPhone('');
-        setNewPatientVital('');
-        setNewPatientCaregiver('');
-        setIsModalOpen(false);
-        setSyncing(false);
-      }, 300);
-      return;
-    }
+    addLog('Local DB', `ลงทะเบียนผู้ป่วยใหม่ ${newPatientName} (${newId}) [${newPatientMoo}] เรียบร้อย`, 'success');
 
-    addLog('Sheets DB', `กำลังลงทะเบียนผู้ป่วยใหม่: ${newPatientName}...`, 'pending');
-    try {
-      const sheetsService = new SheetsService(token);
-      
-      const pSuccess = await sheetsService.addPatient(newPatient);
-      const aSuccess = await sheetsService.addActivity(newActivity);
-
-      if (pSuccess && aSuccess) {
+    if (isRealGoogleToken(token)) {
+      addLog('Sheets DB', `กำลังส่งผู้ป่วยใหม่ลงใน Google Sheets: ${newPatientName}...`, 'pending');
+      try {
+        const sheetsService = new SheetsService(token!);
+        await sheetsService.addPatient(newPatient);
+        await sheetsService.addActivity(newActivity);
         addLog('Sheets DB', `ลงทะเบียนผู้ป่วยใหม่ ${newPatientName} (${newId}) ลงใน Google Sheet เรียบร้อย`, 'success');
-        await fetchData(token);
-
-        // Reset
-        setNewPatientCid('');
-        setNewPatientName('');
-        setNewPatientAddress('');
-        setNewPatientMoo('หมู่ 1');
-        setNewPatientPhone('');
-        setNewPatientVital('');
-        setNewPatientCaregiver('');
-        setIsModalOpen(false);
-      } else {
-        throw new Error('API write operations incomplete');
+      } catch (error: any) {
+        console.error(error);
+        addLog('Sheets DB', `ไม่สามารถส่งผู้ป่วยลง Google Sheets: ${error.message} (บันทึกในเครื่องเรียบร้อย)`, 'warning');
       }
-    } catch (error: any) {
-      console.error(error);
-      addLog('Sheets DB', `ล้มเหลวในการลงทะเบียนผู้ป่วยใหม่: ${error.message}`, 'error');
-      alert('ลงทะเบียนคนไข้ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง');
-    } finally {
-      setSyncing(false);
     }
+
+    // Reset
+    setNewPatientCid('');
+    setNewPatientName('');
+    setNewPatientAddress('');
+    setNewPatientMoo('หมู่ 1');
+    setNewPatientPhone('');
+    setNewPatientVital('');
+    setNewPatientCaregiver('');
+    setIsModalOpen(false);
+    setSyncing(false);
   };
 
   const handleRegisterVhv = (e: React.FormEvent) => {
@@ -2352,8 +2296,8 @@ export default function App() {
 
   const handleRegisterCaregiver = (e: React.FormEvent) => {
     e.preventDefault();
-    if (userRole !== 'staff') {
-      alert('⚠️ สิทธิ์การใช้งานจำกัด: เฉพาะเจ้าหน้าที่สาธารณสุขเท่านั้นที่ได้รับอนุญาตให้ลงทะเบียนข้อมูลได้');
+    if (userRole === 'public') {
+      alert('⚠️ สิทธิ์การใช้งานจำกัด: เฉพาะเจ้าหน้าที่สาธารณสุขและ อสม. เท่านั้นที่ได้รับอนุญาตให้ลงทะเบียนข้อมูลได้');
       return;
     }
     if (!newCgName.trim()) {
@@ -2405,8 +2349,8 @@ export default function App() {
 
   const handleRegisterBenefactor = (e: React.FormEvent) => {
     e.preventDefault();
-    if (userRole !== 'staff') {
-      alert('⚠️ สิทธิ์การใช้งานจำกัด: เฉพาะเจ้าหน้าที่สาธารณสุขเท่านั้นที่ได้รับอนุญาตให้ลงทะเบียนผู้ทำคุณประโยชน์ได้');
+    if (userRole === 'public') {
+      alert('⚠️ สิทธิ์การใช้งานจำกัด: เฉพาะเจ้าหน้าที่สาธารณสุขและ อสม. เท่านั้นที่ได้รับอนุญาตให้ลงทะเบียนผู้ทำคุณประโยชน์ได้');
       return;
     }
     if (!newBenName.trim()) {
@@ -2508,46 +2452,32 @@ export default function App() {
       status: 'Normal',
     };
 
-    if (!token || token === 'mock-staff-token') {
-      addLog('Local DB', `กำลังแก้ไขข้อมูลผู้ป่วย (จำลอง): ${editPatientName}...`, 'pending');
-      setTimeout(() => {
-        const updatedPatients = patients.map(p => p.id === editPatientId ? updatedPatient : p);
-        const updatedActivities = [editActivity, ...activities];
-        
-        setPatients(updatedPatients);
-        setActivities(updatedActivities);
-        localStorage.setItem('stitchsync_patients', JSON.stringify(updatedPatients));
-        localStorage.setItem('stitchsync_activities', JSON.stringify(updatedActivities));
+    // Always update local React state & LocalStorage immediately
+    const updatedPatients = patients.map(p => p.id === editPatientId ? updatedPatient : p);
+    const updatedActivities = [editActivity, ...activities];
+    
+    setPatients(updatedPatients);
+    setActivities(updatedActivities);
+    localStorage.setItem('stitchsync_patients', JSON.stringify(updatedPatients));
+    localStorage.setItem('stitchsync_activities', JSON.stringify(updatedActivities));
 
-        addLog('Local DB', `แก้ไขข้อมูลผู้ป่วยคุณ ${editPatientName} สำเร็จลงใน Sandbox เรียบร้อย`, 'success');
-        
-        setIsModalOpen(false);
-        setSyncing(false);
-      }, 300);
-      return;
-    }
+    addLog('Local DB', `แก้ไขข้อมูลผู้ป่วยคุณ ${editPatientName} สำเร็จ`, 'success');
 
-    addLog('Sheets DB', `กำลังอัปเดตข้อมูลผู้ป่วยใน Google Sheets: ${editPatientName}...`, 'pending');
-    try {
-      const sheetsService = new SheetsService(token);
-      
-      const pSuccess = await sheetsService.updatePatient(updatedPatient);
-      const aSuccess = await sheetsService.addActivity(editActivity);
-
-      if (pSuccess && aSuccess) {
+    if (isRealGoogleToken(token)) {
+      addLog('Sheets DB', `กำลังอัปเดตข้อมูลผู้ป่วยใน Google Sheets: ${editPatientName}...`, 'pending');
+      try {
+        const sheetsService = new SheetsService(token!);
+        await sheetsService.updatePatient(updatedPatient);
+        await sheetsService.addActivity(editActivity);
         addLog('Sheets DB', `แก้ไขข้อมูลผู้ป่วย ${editPatientName} (${editPatientId}) ใน Google Sheets เรียบร้อย`, 'success');
-        await fetchData(token);
-        setIsModalOpen(false);
-      } else {
-        throw new Error('API update operations incomplete');
+      } catch (error: any) {
+        console.error(error);
+        addLog('Sheets DB', `ไม่สามารถแก้ไขใน Google Sheets: ${error.message} (บันทึกในเครื่องแล้ว)`, 'warning');
       }
-    } catch (error: any) {
-      console.error(error);
-      addLog('Sheets DB', `ล้มเหลวในการแก้ไขข้อมูลผู้ป่วย: ${error.message}`, 'error');
-      alert('แก้ไขข้อมูลคนไข้ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง');
-    } finally {
-      setSyncing(false);
     }
+
+    setIsModalOpen(false);
+    setSyncing(false);
   };
 
   // Edit VHV Helpers
@@ -2614,8 +2544,8 @@ export default function App() {
 
   // Edit Benefactor Helpers
   const openEditBen = (item: { id: string; cid?: string; name: string; phone: string; address: string; moo?: string; contribution: string }) => {
-    if (userRole !== 'staff') {
-      alert('⚠️ สิทธิ์การใช้งานจำกัด: เฉพาะเจ้าหน้าที่สาธารณสุขเท่านั้นที่ได้รับอนุญาตให้แก้ไขข้อมูลได้');
+    if (userRole === 'public') {
+      alert('⚠️ สิทธิ์การใช้งานจำกัด: เฉพาะเจ้าหน้าที่สาธารณสุขและ อสม. เท่านั้นที่ได้รับอนุญาตให้แก้ไขข้อมูลได้');
       return;
     }
     setEditBenId(item.id);
@@ -2630,8 +2560,8 @@ export default function App() {
 
   const submitEditBen = (e: React.FormEvent) => {
     e.preventDefault();
-    if (userRole !== 'staff') {
-      alert('⚠️ สิทธิ์การใช้งานจำกัด: เฉพาะเจ้าหน้าที่สาธารณสุขเท่านั้นที่ได้รับอนุญาตให้แก้ไขข้อมูลได้');
+    if (userRole === 'public') {
+      alert('⚠️ สิทธิ์การใช้งานจำกัด: เฉพาะเจ้าหน้าที่สาธารณสุขและ อสม. เท่านั้นที่ได้รับอนุญาตให้แก้ไขข้อมูลได้');
       return;
     }
     if (!editBenName.trim()) return;
@@ -2653,8 +2583,8 @@ export default function App() {
 
   // Reorder / Move functions for Patients, VHVs, Caregivers, Benefactors
   const movePatientById = (id: string, direction: 'up' | 'down') => {
-    if (userRole !== 'staff') {
-      alert('⚠️ สิทธิ์การใช้งานจำกัด: เฉพาะเจ้าหน้าที่สาธารณสุขเท่านั้นที่ได้รับอนุญาตให้ปรับเปลี่ยนลำดับรายชื่อ');
+    if (userRole === 'public') {
+      alert('⚠️ สิทธิ์การใช้งานจำกัด: เฉพาะเจ้าหน้าที่สาธารณสุขและ อสม. เท่านั้นที่ได้รับอนุญาตให้ปรับเปลี่ยนลำดับรายชื่อ');
       return;
     }
     const index = patients.findIndex(p => p.id === id);
@@ -2671,8 +2601,8 @@ export default function App() {
   };
 
   const moveVhvById = (id: string, direction: 'up' | 'down') => {
-    if (userRole !== 'staff') {
-      alert('⚠️ สิทธิ์การใช้งานจำกัด: เฉพาะเจ้าหน้าที่สาธารณสุขเท่านั้นที่ได้รับอนุญาตให้ปรับเปลี่ยนลำดับรายชื่อ');
+    if (userRole === 'public') {
+      alert('⚠️ สิทธิ์การใช้งานจำกัด: เฉพาะเจ้าหน้าที่สาธารณสุขและ อสม. เท่านั้นที่ได้รับอนุญาตให้ปรับเปลี่ยนลำดับรายชื่อ');
       return;
     }
     const index = vhvs.findIndex(v => v.id === id);
@@ -2689,8 +2619,8 @@ export default function App() {
   };
 
   const moveCaregiverById = (id: string, direction: 'up' | 'down') => {
-    if (userRole !== 'staff') {
-      alert('⚠️ สิทธิ์การใช้งานจำกัด: เฉพาะเจ้าหน้าที่สาธารณสุขเท่านั้นที่ได้รับอนุญาตให้ปรับเปลี่ยนลำดับรายชื่อ');
+    if (userRole === 'public') {
+      alert('⚠️ สิทธิ์การใช้งานจำกัด: เฉพาะเจ้าหน้าที่สาธารณสุขและ อสม. เท่านั้นที่ได้รับอนุญาตให้ปรับเปลี่ยนลำดับรายชื่อ');
       return;
     }
     const index = caregivers.findIndex(c => c.id === id);
@@ -2707,8 +2637,8 @@ export default function App() {
   };
 
   const moveBenefactorById = (id: string, direction: 'up' | 'down') => {
-    if (userRole !== 'staff') {
-      alert('⚠️ สิทธิ์การใช้งานจำกัด: เฉพาะเจ้าหน้าที่สาธารณสุขเท่านั้นที่ได้รับอนุญาตให้ปรับเปลี่ยนลำดับรายชื่อ');
+    if (userRole === 'public') {
+      alert('⚠️ สิทธิ์การใช้งานจำกัด: เฉพาะเจ้าหน้าที่สาธารณสุขและ อสม. เท่านั้นที่ได้รับอนุญาตให้ปรับเปลี่ยนลำดับรายชื่อ');
       return;
     }
     const index = benefactors.findIndex(b => b.id === id);
@@ -2726,7 +2656,7 @@ export default function App() {
 
   // Drag-and-drop handler for direct row reordering
   const reorderVhvs = (draggedId: string, targetId: string) => {
-    if (draggedId === targetId || userRole !== 'staff') return;
+    if (draggedId === targetId || userRole === 'public') return;
     const fromIndex = vhvs.findIndex(v => v.id === draggedId);
     const toIndex = vhvs.findIndex(v => v.id === targetId);
     if (fromIndex === -1 || toIndex === -1) return;
@@ -2739,7 +2669,7 @@ export default function App() {
   };
 
   const reorderPatients = (draggedId: string, targetId: string) => {
-    if (draggedId === targetId || userRole !== 'staff') return;
+    if (draggedId === targetId || userRole === 'public') return;
     const fromIndex = patients.findIndex(p => p.id === draggedId);
     const toIndex = patients.findIndex(p => p.id === targetId);
     if (fromIndex === -1 || toIndex === -1) return;
@@ -2752,7 +2682,7 @@ export default function App() {
   };
 
   const reorderCaregivers = (draggedId: string, targetId: string) => {
-    if (draggedId === targetId || userRole !== 'staff') return;
+    if (draggedId === targetId || userRole === 'public') return;
     const fromIndex = caregivers.findIndex(c => c.id === draggedId);
     const toIndex = caregivers.findIndex(c => c.id === targetId);
     if (fromIndex === -1 || toIndex === -1) return;
@@ -2765,7 +2695,7 @@ export default function App() {
   };
 
   const reorderBenefactors = (draggedId: string, targetId: string) => {
-    if (draggedId === targetId || userRole !== 'staff') return;
+    if (draggedId === targetId || userRole === 'public') return;
     const fromIndex = benefactors.findIndex(b => b.id === draggedId);
     const toIndex = benefactors.findIndex(b => b.id === targetId);
     if (fromIndex === -1 || toIndex === -1) return;
@@ -2892,19 +2822,19 @@ export default function App() {
                 {/* Direct Gmail Address Input Form */}
                 <form onSubmit={handleStaffGmailSubmit} className="space-y-3">
                   <div>
-                    <label className="block text-[20px] font-bold text-slate-700 mb-1">อีเมล Gmail เจ้าหน้าที่</label>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">อีเมล Gmail เจ้าหน้าที่</label>
                     <input
                       type="email"
                       required
-                      placeholder="เช่น somchai.health@gmail.com"
+                      placeholder="เช่น chinnapat37428@gmail.com"
                       value={staffGmailInput}
                       onChange={(e) => setStaffGmailInput(e.target.value)}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[20px] focus:ring-1 focus:ring-blue-500 focus:bg-white focus:outline-none font-mono"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-1 focus:ring-blue-500 focus:bg-white focus:outline-none font-mono"
                     />
                   </div>
                   <button
                     type="submit"
-                    className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-[20px] rounded-xl transition-all cursor-pointer shadow-sm flex items-center justify-center gap-1.5"
+                    className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl transition-all cursor-pointer shadow-sm flex items-center justify-center gap-1.5"
                   >
                     <Mail className="w-4 h-4" />
                     <span>ยืนยันเข้าสู่ระบบด้วย Gmail</span>
@@ -3870,7 +3800,7 @@ export default function App() {
                                   <th className="p-4 font-bold">ประเภท</th>
                                   <th className="p-4 font-bold">เบอร์โทรศัพท์</th>
                                   <th className="p-4 font-bold">ที่อยู่อาศัยหลัก</th>
-                                  {userRole === 'staff' && <th className="p-4 text-center font-bold">ปรับลำดับ</th>}
+                                  {userRole !== 'public' && <th className="p-4 text-center font-bold">ปรับลำดับ</th>}
                                   <th className="p-4 pr-6 text-right font-bold">จัดการ</th>
                                 </tr>
                               </thead>
@@ -3878,7 +3808,7 @@ export default function App() {
                                 {filteredVhvs.map((item) => (
                                   <tr 
                                     key={item.id} 
-                                    draggable={userRole === 'staff'}
+                                    draggable={userRole !== 'public'}
                                     onDragStart={(e) => {
                                       e.dataTransfer.setData('text/plain', item.id);
                                       setDraggedVhvId(item.id);
@@ -4395,7 +4325,7 @@ export default function App() {
                                   <th className="p-4 font-bold">กลุ่มคัดกรอง</th>
                                   <th className="p-4 font-bold">อสม. รับผิดชอบ</th>
                                   <th className="p-4 font-bold">ที่อยู่อาศัยหลัก</th>
-                                  {userRole === 'staff' && <th className="p-4 text-center font-bold">ปรับลำดับ</th>}
+                                  {userRole !== 'public' && <th className="p-4 text-center font-bold">ปรับลำดับ</th>}
                                   <th className="p-4 pr-6 text-right font-bold">จัดการ</th>
                                 </tr>
                               </thead>
@@ -4403,7 +4333,7 @@ export default function App() {
                                 {filteredDbPatients.map((item) => (
                                   <tr 
                                     key={item.id} 
-                                    draggable={userRole === 'staff'}
+                                    draggable={userRole !== 'public'}
                                     onDragStart={(e) => {
                                       e.dataTransfer.setData('text/plain', item.id);
                                       setDraggedPatientId(item.id);
@@ -4726,7 +4656,7 @@ export default function App() {
                                   <th className="p-4 font-bold">ความสัมพันธ์</th>
                                   <th className="p-4 font-bold">เบอร์โทรศัพท์</th>
                                   <th className="p-4 font-bold">ที่อยู่อาศัยหลัก</th>
-                                  {userRole === 'staff' && <th className="p-4 text-center font-bold">ปรับลำดับ</th>}
+                                  {userRole !== 'public' && <th className="p-4 text-center font-bold">ปรับลำดับ</th>}
                                   <th className="p-4 pr-6 text-right font-bold">จัดการ</th>
                                 </tr>
                               </thead>
@@ -4734,7 +4664,7 @@ export default function App() {
                                 {filteredCaregivers.map((item) => (
                                   <tr 
                                     key={item.id} 
-                                    draggable={userRole === 'staff'}
+                                    draggable={userRole !== 'public'}
                                     onDragStart={(e) => {
                                       e.dataTransfer.setData('text/plain', item.id);
                                       setDraggedCaregiverId(item.id);
@@ -5055,7 +4985,7 @@ export default function App() {
                                   <th className="p-4 font-bold">การสนับสนุน / คุณประโยชน์ต่อชุมชน</th>
                                   <th className="p-4 font-bold">เบอร์โทรศัพท์</th>
                                   <th className="p-4 font-bold">ที่อยู่อาศัย / ที่ตั้ง</th>
-                                  {userRole === 'staff' && <th className="p-4 text-center font-bold">ปรับลำดับ</th>}
+                                  {userRole !== 'public' && <th className="p-4 text-center font-bold">ปรับลำดับ</th>}
                                   <th className="p-4 pr-6 text-right font-bold">จัดการ</th>
                                 </tr>
                               </thead>
@@ -5063,7 +4993,7 @@ export default function App() {
                                 {filteredBenefactors.map((item) => (
                                   <tr 
                                     key={item.id} 
-                                    draggable={userRole === 'staff'}
+                                    draggable={userRole !== 'public'}
                                     onDragStart={(e) => {
                                       e.dataTransfer.setData('text/plain', item.id);
                                       setDraggedBenefactorId(item.id);
@@ -6633,7 +6563,7 @@ export default function App() {
                                   .map((p, idx) => {
                                     const isAlreadySynced = patients.some(mainP => mainP.name === p.name);
                                     return (
-                                      <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
+                                      <tr key={p.id || `${p.name}-${p.address}`} className="hover:bg-slate-50/50 transition-colors">
                                         <td className="p-4 pl-6 font-bold text-slate-800">{p.name}</td>
                                         <td className="p-4">
                                           <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${
@@ -6677,7 +6607,7 @@ export default function App() {
                                                 setSyncing(true);
                                                 addLog('Sheets Import', `กำลังนำเข้าผู้พึ่งพิงใหม่ ${p.name}...`, 'pending');
                                                 try {
-                                                  if (!token || token === 'mock-staff-token') {
+                                                  if (!isRealGoogleToken(token)) {
                                                     const updatedPatients = [p, ...patients];
                                                     setPatients(updatedPatients);
                                                     localStorage.setItem('stitchsync_patients', JSON.stringify(updatedPatients));
